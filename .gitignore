@@ -41,5 +41,6 @@ desktop.ini
 # Uncomment the line below if you want to exclude capture data from git
 # Vribbels/captures/memory_fragments_*.json
 
-# Reference images - not needed in repository
+# Reference images and icon tools - not needed in repository
 CZN Assets/
+images/
