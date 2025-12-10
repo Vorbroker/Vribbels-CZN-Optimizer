@@ -33,12 +33,17 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 
 ### Requirements
 - Python 3.8 or higher
-- Required packages:
-  ```bash
-  pip install pillow mitmproxy
-  ```
+- Windows (for capture functionality)
 
-### Setup
+### Quick Start
+
+**Option 1: Download Release (Recommended)**
+1. Download the latest release from the [Releases page](https://github.com/Vorbroker/Vribbels-CZN-Optimizer/releases)
+2. Extract the files
+3. Run `czn_optimizer_gui.py`
+4. Navigate to the **Setup** tab and click **"Install Dependencies"** to automatically install required packages (Pillow, mitmproxy)
+
+**Option 2: Clone Repository**
 1. Clone this repository:
    ```bash
    git clone https://github.com/Vorbroker/Vribbels-CZN-Optimizer.git
@@ -49,6 +54,8 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
    ```bash
    python Vribbels/czn_optimizer_gui.py
    ```
+
+3. Navigate to the **Setup** tab and click **"Install Dependencies"** to automatically install required packages
 
 ## Usage
 
