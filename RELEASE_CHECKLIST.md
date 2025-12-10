@@ -10,24 +10,23 @@ Vribbels/
 ├── czn_optimizer_gui.py          # Main application
 ├── captures/
 │   └── _capture_addon.py         # Standalone capture addon
-└── (captures folder otherwise empty - no JSON files)
-
-images/                            # Growth stone icons
-├── growth_stone_passion_common.png
-├── growth_stone_passion_great.png
-├── growth_stone_passion_premium.png
-├── growth_stone_instinct_common.png
-├── growth_stone_instinct_great.png
-├── growth_stone_instinct_premium.png
-├── growth_stone_void_common.png
-├── growth_stone_void_great.png
-├── growth_stone_void_premium.png
-├── growth_stone_order_common.png
-├── growth_stone_order_great.png
-├── growth_stone_order_premium.png
-├── growth_stone_justice_common.png
-├── growth_stone_justice_great.png
-└── growth_stone_justice_premium.png
+│   (no JSON files - captures folder otherwise empty)
+└── images/                        # Growth stone icons (15 PNG files)
+    ├── growth_stone_passion_common.png
+    ├── growth_stone_passion_great.png
+    ├── growth_stone_passion_premium.png
+    ├── growth_stone_instinct_common.png
+    ├── growth_stone_instinct_great.png
+    ├── growth_stone_instinct_premium.png
+    ├── growth_stone_void_common.png
+    ├── growth_stone_void_great.png
+    ├── growth_stone_void_premium.png
+    ├── growth_stone_order_common.png
+    ├── growth_stone_order_great.png
+    ├── growth_stone_order_premium.png
+    ├── growth_stone_justice_common.png
+    ├── growth_stone_justice_great.png
+    └── growth_stone_justice_premium.png
 
 README.md                          # User documentation
 ```
