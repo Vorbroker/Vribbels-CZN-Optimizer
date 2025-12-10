@@ -9,7 +9,7 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 - **Stat Priority Weighting**: Customize stat priorities to match your build goals
 - **Set Bonus Support**: Filter by 2-piece and 4-piece set bonuses
 - **Gear Score Calculation**: Evaluates fragments based on substats and potential
-- **Top X% Filtering**: Reduce search space by focusing on your best fragments
+- **Top X% Filtering**: Reduce search time by focusing on the best fragments
 
 ### Inventory Management
 - **Memory Fragments Tab**: View and filter all your equipped and unequipped fragments
