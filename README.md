@@ -30,15 +30,13 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 ## Installation
 
 ### Requirements
-- Windows (for capture functionality)
-- No Python installation required
+- Windows
 
 ### Quick Start
 
 1. Download the latest release from the [Releases page](https://github.com/Vorbroker/Vribbels-CZN-Optimizer/releases)
-2. Extract the zip file
-3. Run `Vribbels_CZN_Optimizer.exe`
-4. Navigate to the **Setup** tab and click **Generate & Install Cert**
+2. Run `Vribbels_CZN_Optimizer.exe`
+3. Navigate to the **Setup** tab and click **Generate & Install Cert**
 
 ## Usage
 

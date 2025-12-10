@@ -2900,7 +2900,6 @@ class OptimizerGUI:
         req_frame.pack(fill=tk.X, pady=(0, 10))
 
         requirements_text = """- Run as Administrator (required for hosts file modification)
-- mitmproxy installed (pip install mitmproxy)
 - Certificate installed (see Setup tab)
 - Game must be closed before starting capture
 - After starting capture, launch game and load into the main menu, then stop the capture"""
@@ -2949,16 +2948,12 @@ class OptimizerGUI:
         btn_frame.pack(fill=tk.X, pady=(0, 10))
 
         ttk.Button(btn_frame, text="Check Status", command=self.check_setup_status, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Install mitmproxy", command=self.install_mitmproxy, width=18).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Generate & Install Cert", command=self.setup_certificate, width=22).pack(side=tk.LEFT, padx=5)
 
         instr_frame = ttk.LabelFrame(main_frame, text="Setup Instructions", padding=10)
         instr_frame.pack(fill=tk.BOTH, expand=True)
 
-        instructions = """STEP 1: Install mitmproxy
-  - Click "Install mitmproxy" button or run: pip install mitmproxy
-  
-STEP 2: Generate and install certificate
+        instructions = """STEP 1: Generate and install certificate
   - Click "Generate & Install Cert" button
   - When the certificate dialog opens:
     1. Click "Install Certificate"
@@ -2968,7 +2963,7 @@ STEP 2: Generate and install certificate
     5. Click Browse and select "Trusted Root Certification Authorities"
     6. Click OK, Next, then Finish
 
-STEP 3: Verify setup
+STEP 2: Verify setup
   - Click "Check Status" to verify all components are ready
   - All items should show green checkmarks [OK]"""
 
