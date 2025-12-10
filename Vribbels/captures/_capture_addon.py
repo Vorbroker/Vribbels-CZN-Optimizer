@@ -3,7 +3,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-OUTPUT_DIR = Path(r"C:\Users\stayp\OneDrive\Documents\czn_capture_tool\fresh\captures")
+OUTPUT_DIR = Path(r"C:\Users\stayp\OneDrive\Documents\czn_capture_tool\Vribbels\captures")
 
 class Addon:
     def __init__(self):

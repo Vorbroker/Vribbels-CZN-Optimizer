@@ -44,3 +44,6 @@ desktop.ini
 # Reference images and icon tools - not needed in repository
 CZN Assets/
 images/
+
+# Claude Code documentation
+CLAUDE.md

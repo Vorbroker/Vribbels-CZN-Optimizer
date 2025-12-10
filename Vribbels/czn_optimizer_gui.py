@@ -23,6 +23,7 @@ from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import queue
 from datetime import datetime
+from PIL import Image, ImageTk, ImageDraw, ImageFont
 
 # === CONSTANTS ===
 
@@ -534,6 +535,21 @@ PARTNERS = {
         "ego_cost": 2,
         "ego_desc": "Heal 100%. When in an Injured state, increase Healing Amount by 50%. 1 Morale for 1 turn.",
     },
+    20005: {
+        "name": "Eishlen",
+        "grade": 5,
+        "class": "Vanguard",
+        "passive_name": "Arcane Wave",
+        "passive_desc": "The assigned combatant's Health and shield gain are increased by {HP%}%.\nWhen the assigned Combatant gains Counterattack for the first time, +{Counter%}%.",
+        "values": {
+            "HP%": (8, 10, 12, 14, 16),
+            "Counter%": (15, 19, 23, 27, 30),
+        },
+        "stats": {},
+        "ego_name": "Innos's Guardian",
+        "ego_cost": 4,
+        "ego_desc": "100% shield. At the end of the turn, retain 50% of Shield.",
+    },
     20006: {
         "name": "Nyx",
         "grade": 5,
@@ -548,6 +564,51 @@ PARTNERS = {
         "ego_name": "Errante Hurricane",
         "ego_cost": 4,
         "ego_desc": "Discard up to 3 cards, then Draw +1 cards equal to the number discarded.",
+    },
+    20007: {
+        "name": "Akad",
+        "grade": 4,
+        "class": "Hunter",
+        "passive_name": "Self Defense",
+        "passive_desc": "The damage of the combatant's Bullet cards increases by {BulletDMG%}%.\nWhen the combatant lands their first critical hit, Bullet card damage increases by {BulletDMG2%}% for 1 turn.",
+        "values": {
+            "BulletDMG%": (10, 13, 15, 18, 20),
+            "BulletDMG2%": (12, 15, 18, 21, 24),
+        },
+        "stats": {},
+        "ego_name": "What I Wished to Protect",
+        "ego_cost": 2,
+        "ego_desc": "For 1 turn, +25% Critical Chance of Designated Combatants's Attack cards.",
+    },
+    20008: {
+        "name": "Anteia",
+        "grade": 5,
+        "class": "Psionic",
+        "passive_name": "Clairvoyance",
+        "passive_desc": "The assigned combatant's HP and damage are increased by {HP%}%.\nWhen a card is created for the first time by the assigned Combatant each turn, +{CardDMG%}% Damage Amount to Attack Cards for 1 turn.",
+        "values": {
+            "HP%": (8, 10, 12, 14, 16),
+            "CardDMG%": (8, 10, 12, 14, 16),
+        },
+        "stats": {"HP%": (8, 10, 12, 14, 16)},
+        "ego_name": "Scholarly Measures",
+        "ego_cost": 2,
+        "ego_desc": "180% Damage to all enemies. 1 Vulnerable.",
+    },
+    20009: {
+        "name": "Zeta",
+        "grade": 5,
+        "class": "Vanguard",
+        "passive_name": "Deadly Poison",
+        "passive_desc": "The Defense-Based Damage of the assigned combatant's Instinct cards is increased by {InstDMG%}%.\nThe assigned Combatant's Defense-Based Damage and Shield Amount for the Celestial card becomes +{CelestialBonus%}%.",
+        "values": {
+            "InstDMG%": (15, 19, 23, 27, 31),
+            "CelestialBonus%": (25, 32, 38, 44, 50),
+        },
+        "stats": {},
+        "ego_name": "Undertaking the Mission",
+        "ego_cost": 2,
+        "ego_desc": "200% Defense-Based Damage. Draws 1 highest-cost card.",
     },
     20010: {
         "name": "Nakia",
@@ -613,6 +674,21 @@ PARTNERS = {
         "ego_cost": 2,
         "ego_desc": "Gain 100% Shield. Gain 1 Counterattack.",
     },
+    20014: {
+        "name": "Serithea",
+        "grade": 5,
+        "class": "Hunter",
+        "passive_name": "Ensemble",
+        "passive_desc": "The Critical Chance of the combatant's attack cards increases by {CRate%}%.\nWhen the assigned combatant's attack results in a Critical Hit, +{CDmg%}% Critical Damage. Stacks up to 5 times.",
+        "values": {
+            "CRate%": (8, 10, 12, 14, 16),
+            "CDmg%": (3, 3.5, 4, 4.5, 5),
+        },
+        "stats": {},
+        "ego_name": "Crimson Romance",
+        "ego_cost": 3,
+        "ego_desc": "250% Damage. 2 Vulnerable.",
+    },
     20015: {
         "name": "Douglas",
         "grade": 3,
@@ -643,6 +719,21 @@ PARTNERS = {
         "ego_name": "Drone Deployment",
         "ego_cost": 3,
         "ego_desc": "Draw 2",
+    },
+    20019: {
+        "name": "Priscilla",
+        "grade": 5,
+        "class": "Striker",
+        "passive_name": "Arachnid Domain",
+        "passive_desc": "The assigned combatant's HP and damage are increased by {HP%}%.\n+{RavagedDMG%}% Damage dealt by the assigned Combatant to targets in a Ravaged state.",
+        "values": {
+            "HP%": (8, 10, 12, 14, 16),
+            "RavagedDMG%": (25, 32, 38, 44, 50),
+        },
+        "stats": {"HP%": (8, 10, 12, 14, 16)},
+        "ego_name": "Arachnid Web",
+        "ego_cost": 2,
+        "ego_desc": "Deal 250% Damage. Apply Weakness Attack to 1 assigned combatant's random Attack cards in hand.",
     },
     20024: {
         "name": "Wilhelmina",
@@ -704,6 +795,21 @@ PARTNERS = {
         "ego_cost": 3,
         "ego_desc": "For 1 turn, when a card is Exhausted, apply 1 Weaken to a random enemy.",
     },
+    20030: {
+        "name": "Kiara",
+        "grade": 5,
+        "class": "Hunter",
+        "passive_name": "Analyze Weakness",
+        "passive_desc": "If there are 10 or more cards in the Graveyard, the assigned combatant's attack card damage is increased by {GraveDMG%}%.\nWhen a card is discarded for the first time by the assigned Combatant each turn, +{DiscardDMG%}% Damage Amount to Attack Cards for 1 turn.",
+        "values": {
+            "GraveDMG%": (15, 19, 23, 27, 30),
+            "DiscardDMG%": (25, 32, 38, 44, 50),
+        },
+        "stats": {},
+        "ego_name": "Lumina Explosion",
+        "ego_cost": 3,
+        "ego_desc": "200% Damage. +20% Damage by the number of cards in Graveyard.",
+    },
     20032: {
         "name": "Rachel",
         "grade": 4,
@@ -735,16 +841,19 @@ PARTNERS = {
         "ego_desc": "Deal 100% Damage to all enemies. Draw 1 Attack card(s) from the assigned combatant with cost of less than or equal to 1.",
     },
     20035: {
-        "name": "Unknown (20035)",
-        "grade": 3,
-        "class": "Controller",
-        "passive_name": "Unknown Passive",
-        "passive_desc": "Unknown passive effect.",
-        "values": {},
+        "name": "Ritochka",
+        "grade": 4,
+        "class": "Striker",
+        "passive_name": "Construction Support",
+        "passive_desc": "The assigned Combatant's attack cards with a cost of 2 or more deal +{Cost2DMG%}% damage.\nAt the start of the turn, 1 of the assigned Combatant's attack cards gains +{CostScaleDMG%}% damage for every point of the total cost of attack cards.",
+        "values": {
+            "Cost2DMG%": (10, 13, 15, 18, 20),
+            "CostScaleDMG%": (5, 7, 8, 9, 10),
+        },
         "stats": {},
-        "ego_name": "Unknown Skill",
+        "ego_name": "Workplace hazards ahead!",
         "ego_cost": 2,
-        "ego_desc": "Unknown effect.",
+        "ego_desc": "For 1 turn, 3 Morale.",
     },
     20036: {
         "name": "Carroty",
@@ -760,6 +869,112 @@ PARTNERS = {
         "ego_name": "Eating Soft Carrots",
         "ego_cost": 2,
         "ego_desc": "Increase Damage Amount of cards created by Designated Combatants's ability by 20% for 1 turn.",
+    },
+    20039: {
+        "name": "Tina",
+        "grade": 5,
+        "class": "Ranger",
+        "passive_name": "Communication Support",
+        "passive_desc": "Order attribute's Extra Attack damage increase by {OrderExtra%}%.\n+{TargetExtra%}% Extra Attack damage from Targeting Attack Cards.",
+        "values": {
+            "OrderExtra%": (15, 19, 23, 27, 31),
+            "TargetExtra%": (25, 32, 38, 44, 50),
+        },
+        "stats": {},
+        "ego_name": "Target confirmed, initiating support!",
+        "ego_cost": 2,
+        "ego_desc": "Draw 1. Increase the combatant's Extra Attack damage by 30% for 1 turn.",
+    },
+    30044: {
+        "name": "Westmacott",
+        "grade": 5,
+        "class": "Striker",
+        "passive_name": "Gleaming Deduction",
+        "passive_desc": "Attack Cards of the assigned Combatant drawn gain +{DrawnDMG%}% Damage Amount for 1 turn.\nIncreases Damage Amount of the assigned Combatant's cards that have Inspiration by {InspireDMG%}%.",
+        "values": {
+            "DrawnDMG%": (25, 32, 38, 44, 50),
+            "InspireDMG%": (10, 13, 15, 18, 20),
+        },
+        "stats": {},
+        "ego_name": "Clue Spotted",
+        "ego_cost": 3,
+        "ego_desc": "Move 1 card from hand to Draw Pile. Draw 1 assigned Combatant cards.",
+    },
+    30045: {
+        "name": "Asteria",
+        "grade": 5,
+        "class": "Striker",
+        "passive_name": "Starshine-piercing Lighthouse",
+        "passive_desc": "The assigned combatant's attack cards with a cost of 2 or more deal +{Cost2DMG%}% damage.\nIncrease Damage Amount of Pulverize cards of the assigned Combatant by {PulverizeDMG%}%.",
+        "values": {
+            "Cost2DMG%": (25, 32, 38, 44, 50),
+            "PulverizeDMG%": (10, 13, 15, 18, 20),
+        },
+        "stats": {},
+        "ego_name": "Light of Ark",
+        "ego_cost": 2,
+        "ego_desc": "+20% Damage of the next Attack card used by the assigned Combatant for the total cost of all cards in the hand (Max 10).",
+    },
+    30046: {
+        "name": "Itsuku",
+        "grade": 5,
+        "class": "Psionic",
+        "passive_name": "Tranquil Marker",
+        "passive_desc": "The assigned combatant's Attack is increased by {ATK%}%. Every time the assigned Combatant's cards stack, increases Damage Amount of Attack Cards by {StackDMG%}%. Can stack up to 3 times.\nEvery time 1 Attack Card used by the assigned Combatant deals 3 Hits, inflicts {FixedDMG%}% Fixed Damage to the target.",
+        "values": {
+            "ATK%": (8, 10, 12, 14, 16),
+            "StackDMG%": (5, 7, 8, 9, 10),
+            "FixedDMG%": (30, 38, 45, 53, 60),
+        },
+        "stats": {"ATK%": (8, 10, 12, 14, 16)},
+        "ego_name": "Moonlit Leisure",
+        "ego_cost": 4,
+        "ego_desc": "200% Damage to all enemies.\n 1 Fierce Winds.",
+    },
+    30051: {
+        "name": "Marin",
+        "grade": 5,
+        "class": "Ranger",
+        "passive_name": "Raging Wave",
+        "passive_desc": "The Extra Attack damage of cards generated by the assigned combatant's abilities increases by {ExtraDMG%}%.\nWhen a Skill Card is used for the first time by the assigned Combatant each turn, +{SkillExtra%}% Damage Amount to Extra Attacks for 1 turn.",
+        "values": {
+            "ExtraDMG%": (15, 19, 23, 27, 30),
+            "SkillExtra%": (25, 32, 38, 44, 50),
+        },
+        "stats": {},
+        "ego_name": "Azure Fury",
+        "ego_cost": 3,
+        "ego_desc": "200% Damage to all enemies. Draw 1 skill card.",
+    },
+    30052: {
+        "name": "Noel",
+        "grade": 5,
+        "class": "Controller",
+        "passive_name": "Hymn of Blessing",
+        "passive_desc": "Increase Damage, Shield Gain, and Heal Amounts of the assigned Combatants Retain Cards by {RetainBonus%}%.\nAt the end of the turn, deal Fixed Damage to all enemies equal to {FixedDMG%}% for each retained card of the assigned combatant. +5% Damage for enemies with the Instinct attribute.",
+        "values": {
+            "RetainBonus%": (15, 19, 23, 27, 30),
+            "FixedDMG%": (15, 19, 23, 27, 30),
+        },
+        "stats": {},
+        "ego_name": "Legato of Faith",
+        "ego_cost": 3,
+        "ego_desc": "Heal 100%. Activate the Retain effect of all cards held by the assigned combatant.",
+    },
+    30054: {
+        "name": "Erica",
+        "grade": 5,
+        "class": "Vanguard",
+        "passive_name": "No Speeding!",
+        "passive_desc": "The assigned combatant's Counterattack damage increases by {CounterDMG%}%.\nWhen the assigned Combatant uses a Skill or Upgrade Card, there is a {CounterChance%}% chance to gain Counterattack.",
+        "values": {
+            "CounterDMG%": (15, 19, 23, 27, 30),
+            "CounterChance%": (50, 63, 75, 88, 100),
+        },
+        "stats": {},
+        "ego_name": "Crackdown Beam Bombardment",
+        "ego_cost": 2,
+        "ego_desc": "200% Defense-based Damage to all enemies.\n 1 Counterattack.\n If any enemy's Anticipated Action is attack, 1 Counterattack.",
     },
 }
 
@@ -1041,6 +1256,30 @@ SLOT_MAIN_STATS = {
 
 MAX_LEVEL = 5
 UPGRADES_PER_RARITY = {3: 3, 4: 4}
+
+# Growth Stone items - maps res_id to (attribute, quality, icon_filename)
+GROWTH_STONES = {
+    # Passion stones
+    3120001: ("Passion", "Common", "growth_stone_passion_common.png"),
+    3120002: ("Passion", "Great", "growth_stone_passion_great.png"),
+    3120003: ("Passion", "Premium", "growth_stone_passion_premium.png"),
+    # Instinct stones
+    3120011: ("Instinct", "Common", "growth_stone_instinct_common.png"),
+    3120012: ("Instinct", "Great", "growth_stone_instinct_great.png"),
+    3120013: ("Instinct", "Premium", "growth_stone_instinct_premium.png"),
+    # Void stones
+    3120021: ("Void", "Common", "growth_stone_void_common.png"),
+    3120022: ("Void", "Great", "growth_stone_void_great.png"),
+    3120023: ("Void", "Premium", "growth_stone_void_premium.png"),
+    # Order stones
+    3120031: ("Order", "Common", "growth_stone_order_common.png"),
+    3120032: ("Order", "Great", "growth_stone_order_great.png"),
+    3120033: ("Order", "Premium", "growth_stone_order_premium.png"),
+    # Justice stones
+    3120051: ("Justice", "Common", "growth_stone_justice_common.png"),
+    3120052: ("Justice", "Great", "growth_stone_justice_great.png"),
+    3120053: ("Justice", "Premium", "growth_stone_justice_premium.png"),
+}
 
 
 @dataclass
@@ -1780,8 +2019,12 @@ class OptimizerGUI:
         self.setup_optimizer_tab()
 
         self.inventory_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.inventory_tab, text="Inventory")
+        self.notebook.add(self.inventory_tab, text="Memory Fragments")
         self.setup_inventory_tab()
+
+        self.materials_tab = ttk.Frame(self.notebook)
+        self.notebook.add(self.materials_tab, text="Materials")
+        self.setup_materials_tab()
 
         self.heroes_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.heroes_tab, text="Combatants")
@@ -2065,6 +2308,52 @@ class OptimizerGUI:
         self.inv_tree.configure(yscrollcommand=inv_scroll.set)
         self.inv_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         inv_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def setup_materials_tab(self):
+        """Setup the Materials tab to display growth stones and other items."""
+        container = ttk.Frame(self.materials_tab)
+        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Title
+        title_label = ttk.Label(container, text="Growth Stones", font=("Segoe UI", 14, "bold"))
+        title_label.pack(anchor=tk.W, pady=(0, 15))
+
+        # Growth stones frame
+        stones_frame = ttk.Frame(container)
+        stones_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Store icon references to prevent garbage collection
+        self.material_icons = {}
+
+        # Organize by attribute
+        attributes = ["Passion", "Instinct", "Void", "Order", "Justice"]
+        qualities = ["Premium", "Great", "Common"]
+
+        for row, attribute in enumerate(attributes):
+            # Attribute label
+            attr_label = ttk.Label(stones_frame, text=attribute, font=("Segoe UI", 12, "bold"),
+                                   foreground=ATTRIBUTE_COLORS.get(attribute, "#FFFFFF"))
+            attr_label.grid(row=row, column=0, sticky=tk.W, padx=(0, 20), pady=10)
+
+            # Create icon for each quality level
+            for col, quality in enumerate(qualities, start=1):
+                # Find the res_id for this attribute/quality combo
+                res_id = None
+                for rid, (attr, qual, icon_file) in GROWTH_STONES.items():
+                    if attr == attribute and qual == quality:
+                        res_id = rid
+                        break
+
+                if res_id:
+                    # Placeholder for icon with quantity - will be updated when data loads
+                    placeholder_label = tk.Label(stones_frame, text=f"{quality}\n0",
+                                                bg=self.colors["bg"],
+                                                fg=self.colors["fg"],
+                                                font=("Segoe UI", 11))
+                    placeholder_label.grid(row=row, column=col, padx=5, pady=5)
+
+                    # Store reference with res_id
+                    self.material_icons[res_id] = placeholder_label
 
     def setup_heroes_tab(self):
         user_frame = ttk.Frame(self.heroes_tab)
@@ -3293,9 +3582,10 @@ addons = [Addon()]
                                    activebackground=self.colors["bg"], activeforeground=fg_color,
                                    font=("Segoe UI", 9), anchor=tk.W, width=9)
                 cb.grid(row=row, column=col, sticky=tk.W)
-            
+
             self.refresh_inventory()
             self.refresh_heroes()
+            self.refresh_materials()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load: {e}")
             import traceback
@@ -3790,6 +4080,94 @@ addons = [Addon()]
         # Select first hero
         if self.hero_row_widgets:
             self.select_hero_row(0)
+
+    def create_icon_with_quantity(self, icon_path: str, quantity: int, size=(140, 140)) -> ImageTk.PhotoImage:
+        """Create an icon image with quantity text overlay in bottom right corner."""
+        try:
+            # Load the icon image
+            img = Image.open(icon_path)
+            img = img.resize(size, Image.Resampling.LANCZOS)
+
+            # Create drawing context
+            draw = ImageDraw.Draw(img)
+
+            # Prepare quantity text
+            qty_text = str(quantity)
+
+            # Try to use a nice font, fallback to default
+            try:
+                font = ImageFont.truetype("arial.ttf", 24)
+            except:
+                font = ImageFont.load_default()
+
+            # Get text bounding box at origin
+            bbox = draw.textbbox((0, 0), qty_text, font=font)
+            text_width = bbox[2] - bbox[0]
+            text_height = bbox[3] - bbox[1]
+
+            # Position in bottom right corner with padding
+            padding = 8
+            text_x = size[0] - text_width - padding
+            text_y = size[1] - text_height - padding - 8  # Move up 3 pixels
+
+            # Draw background rectangle for better visibility
+            # Use the actual bbox relative to text position for perfect alignment
+            actual_bbox = draw.textbbox((text_x, text_y), qty_text, font=font)
+            rect_padding = 4
+            draw.rectangle(
+                [actual_bbox[0] - rect_padding,
+                 actual_bbox[1] - rect_padding,
+                 actual_bbox[2] + rect_padding,
+                 actual_bbox[3] + rect_padding],
+                fill=(0, 0, 0, 200)
+            )
+
+            # Draw the text
+            draw.text((text_x, text_y), qty_text, fill="white", font=font)
+
+            # Convert to PhotoImage
+            return ImageTk.PhotoImage(img)
+        except Exception as e:
+            print(f"Error creating icon: {e}")
+            return None
+
+    def refresh_materials(self):
+        """Update materials tab with current inventory data."""
+        if not self.optimizer.raw_data:
+            return
+
+        # Get items from inventory
+        inventory = self.optimizer.raw_data.get("inventory", {})
+        items = inventory.get("items", [])
+
+        # Create dictionary of res_id -> amount
+        item_quantities = {}
+        for item in items:
+            res_id = item.get("res_id")
+            amount = item.get("amount", 0)
+            if res_id:
+                item_quantities[res_id] = amount
+
+        # Get the path to images folder (same directory as script)
+        script_dir = Path(__file__).parent
+        images_dir = script_dir / "images"
+
+        # Update each growth stone icon
+        for res_id, label_widget in self.material_icons.items():
+            if res_id in GROWTH_STONES:
+                attribute, quality, icon_filename = GROWTH_STONES[res_id]
+                quantity = item_quantities.get(res_id, 0)
+                icon_path = images_dir / icon_filename
+
+                if icon_path.exists():
+                    # Create icon with quantity overlay
+                    photo = self.create_icon_with_quantity(str(icon_path), quantity)
+                    if photo:
+                        label_widget.config(image=photo, text="")
+                        label_widget.image = photo  # Keep reference
+                else:
+                    # Icon file not found, show text
+                    label_widget.config(text=f"{quality}\n{quantity}", image="")
 
     def select_hero_row(self, index: int):
         """Select a hero row and update display"""
