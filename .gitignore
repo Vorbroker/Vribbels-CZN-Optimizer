@@ -48,5 +48,7 @@ Vribbels/images/create_icon.py
 Vribbels/images/generate_growth_stones.py
 Vribbels/images/__pycache__/
 
-# Claude Code documentation
+# Claude Code files and internal documentation
+.claude/
 CLAUDE.md
+RELEASE_CHECKLIST.md
