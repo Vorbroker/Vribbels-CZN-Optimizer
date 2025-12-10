@@ -41,9 +41,12 @@ desktop.ini
 # Exclude capture data (contains user-specific test data)
 Vribbels/captures/memory_fragments_*.json
 
-# Reference images and icon tools - not needed in repository
+# Reference images and icon generation tools - not needed in repository
 CZN Assets/
 images/
+Vribbels/images/create_icon.py
+Vribbels/images/generate_growth_stones.py
+Vribbels/images/__pycache__/
 
 # Claude Code documentation
 CLAUDE.md
