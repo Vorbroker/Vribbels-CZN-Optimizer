@@ -4,24 +4,24 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 
 ## Features
 
-###  Memory Fragment Optimizer
+### Memory Fragment Optimizer
 - **Smart Build Optimization**: Automatically finds the best Memory Fragment combinations for your characters
 - **Stat Priority Weighting**: Customize stat priorities to match your build goals
 - **Set Bonus Support**: Filter by 2-piece and 4-piece set bonuses
 - **Gear Score Calculation**: Evaluates fragments based on substats and potential
 - **Top X% Filtering**: Reduce search space by focusing on your best fragments
 
-###  Inventory Management
+### Inventory Management
 - **Memory Fragments Tab**: View and filter all your equipped and unequipped fragments
 - **Materials Tab**: Track your growth stone inventory
 - **Combatants Tab**: View all characters with levels, gear scores, and stats
 
-###  Data Capture
+### Data Capture
 - **Integrated mitmproxy Setup**: Built-in proxy configuration for capturing game data
 - **Automatic Data Extraction**: Captures Memory Fragments, character data, and inventory
 - **One-Click Capture**: Simple interface for extracting data from the game
 
-###  Advanced Features
+### Advanced Features
 - **Potential Node Calculation**: Includes character progression bonuses
 - **Partner Card Integration**: Calculates partner passive stat bonuses
 - **Friendship Bonus Tracking**: Accounts for character friendship stats
@@ -30,16 +30,15 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 ## Installation
 
 ### Requirements
-- Python 3.8 or higher
 - Windows (for capture functionality)
+- No Python installation required
 
 ### Quick Start
 
-**Download Release (Recommended)**
 1. Download the latest release from the [Releases page](https://github.com/Vorbroker/Vribbels-CZN-Optimizer/releases)
-2. Extract the files
-3. Run `czn_optimizer_gui.py`
-4. Navigate to the **Setup** tab and click Install mitmproxy, then Generate & Install Cert
+2. Extract the zip file
+3. Run `Vribbels_CZN_Optimizer.exe`
+4. Navigate to the **Setup** tab and click **Generate & Install Cert**
 
 ## Usage
 
@@ -65,31 +64,7 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 
 ### Viewing Materials
 
-Navigate to the **Materials** tab to see your growth stone inventory organized by attribute and quality level.
-
-## How It Works
-
-### Optimization Algorithm
-1. Filters fragments by selected sets and main stats
-2. Scores each fragment based on weighted stat priorities
-3. Keeps only top X% of fragments per slot
-4. Generates all valid 6-slot combinations
-5. Validates set bonus requirements
-6. Calculates final stats including:
-   - Character base stats
-   - Memory Fragment main stats
-   - Memory Fragment substats
-   - Set bonuses
-   - Potential node bonuses
-   - Partner bonuses
-7. Ranks builds by priority-weighted score
-
-### Gear Score Calculation
-Each Memory Fragment receives a score based on:
-- **Substat Quality**: Low/Med/High/Max rolls
-- **Substat Rolls**: Number of enhancement upgrades
-- **Potential**: Maximum achievable stats
-- Combined into a 0-100 gear score
+Navigate to the **Materials** tab to see your growth stone inventory.
 
 ## Contributing
 
@@ -111,7 +86,9 @@ If you find this tool helpful, consider supporting development:
 
 ## License
 
-This project is for educational and personal use. Chaos Zero Nightmare and all related assets are property of their respective owners.
+MIT License - see [LICENSE](LICENSE) file for details.
+
+Chaos Zero Nightmare and all related assets are property of their respective owners.
 
 ---
 

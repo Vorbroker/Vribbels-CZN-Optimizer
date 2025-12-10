@@ -52,3 +52,16 @@ Vribbels/images/__pycache__/
 .claude/
 CLAUDE.md
 RELEASE_CHECKLIST.md
+
+# Build files and tools (not needed in repository)
+build/
+dist/
+build.bat
+build.spec
+BUILD.md
+requirements.txt
+*.spec
+
+# Release packages (distributed via GitHub Releases)
+*.zip
+Vribbels/Vribbels.zip
