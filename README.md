@@ -31,6 +31,7 @@ A Fribbels-inspired gear management and optimization tool for the mobile game **
 
 ### Requirements
 - Windows
+- STOVE Client
 
 ### Quick Start
 
