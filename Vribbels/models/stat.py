@@ -1,0 +1,42 @@
+"""
+Stat-related data models for CZN.
+Contains SubstatRoll and Stat classes for representing equipment statistics.
+"""
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class SubstatRoll:
+    """Represents a single roll of a substat"""
+    value: float
+    stat_type: int
+    is_min_roll: bool = False
+    is_max_roll: bool = False
+
+
+@dataclass
+class Stat:
+    name: str
+    raw_name: str
+    value: float
+    is_percentage: bool
+    is_main: bool = False
+    roll_count: int = 1
+    rolls: list = field(default_factory=list)
+    base_value: float = 0.0
+    upgrade_values: list = field(default_factory=list)
+
+    def format_value(self) -> str:
+        if self.is_percentage:
+            return f"{self.value:.1f}%"
+        return str(int(self.value) if self.value == int(self.value) else f"{self.value:.1f}")
+
+    def get_gs_contribution(self) -> float:
+        from game_data import STATS
+        stat_info = STATS.get(self.raw_name, (self.name, self.name, self.is_percentage, 1.0, 0.5))
+        max_roll = stat_info[3]
+        if max_roll > 0:
+            normalized = self.value / (max_roll * self.roll_count)
+            return normalized * self.roll_count * 10
+        return 0.0
