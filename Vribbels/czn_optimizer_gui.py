@@ -436,9 +436,10 @@ class MultiSelectListbox(tk.Frame):
     def __init__(self, parent, items, height=4, **kwargs):
         super().__init__(parent, **kwargs)
         
-        self.listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, height=height, 
+        self.listbox = tk.Listbox(self, selectmode=tk.MULTIPLE, height=height,
                                   exportselection=False, bg="#363650", fg="#cdd6f4",
-                                  selectbackground="#89b4fa", highlightthickness=0)
+                                  selectbackground="#3b6ea5", selectforeground="#cdd6f4",
+                                  highlightthickness=0)
         self.listbox.pack(fill=tk.BOTH, expand=True)
         
         for item in items:
@@ -466,7 +467,7 @@ class OptimizerGUI:
             "bg": "#1e1e2e", "bg_light": "#2a2a3e", "bg_lighter": "#363650",
             "fg": "#cdd6f4", "fg_dim": "#6c7086", "accent": "#89b4fa",
             "green": "#a6e3a1", "red": "#f38ba8", "yellow": "#f9e2af", "purple": "#cba6f7",
-            "orange": "#FF8C00",
+            "orange": "#FF8C00", "select": "#3b6ea5",
         }
 
         self.root.configure(bg=self.colors["bg"])
@@ -517,10 +518,13 @@ class OptimizerGUI:
         self.style.configure("TButton", background=self.colors["bg_light"], foreground=self.colors["fg"], padding=5)
         self.style.map("TButton", background=[("active", self.colors["bg_lighter"])])
         self.style.configure("TCombobox", fieldbackground=self.colors["bg_lighter"], background=self.colors["bg_lighter"],
-                             foreground=self.colors["fg"], selectbackground=self.colors["accent"])
+                             foreground=self.colors["fg"], selectbackground=self.colors["select"],
+                             selectforeground=self.colors["fg"])
         self.style.map("TCombobox", fieldbackground=[("readonly", self.colors["bg_lighter"])], 
                        foreground=[("readonly", self.colors["fg"])])
         self.style.configure("TCheckbutton", background=self.colors["bg"], foreground=self.colors["fg"])
+        self.style.map("TCheckbutton", background=[("active", self.colors["bg_lighter"])],
+                       foreground=[("active", self.colors["fg"])])
         self.style.configure("TLabelframe", background=self.colors["bg"])
         self.style.configure("TLabelframe.Label", background=self.colors["bg"], foreground=self.colors["accent"])
         self.style.configure("TScale", background=self.colors["bg"], troughcolor=self.colors["bg_light"])
@@ -530,7 +534,10 @@ class OptimizerGUI:
         self.style.configure("Treeview", background=self.colors["bg_light"], foreground=self.colors["fg"],
                              fieldbackground=self.colors["bg_light"], rowheight=24)
         self.style.configure("Treeview.Heading", background=self.colors["bg_lighter"], foreground=self.colors["fg"])
-        self.style.map("Treeview", background=[("selected", self.colors["accent"])])
+        self.style.map("Treeview.Heading", background=[("active", self.colors["select"])],
+                       foreground=[("active", self.colors["fg"])])
+        self.style.map("Treeview", background=[("selected", self.colors["select"])],
+                       foreground=[("selected", self.colors["fg"])])
 
     def setup_ui(self):
         top_bar = ttk.Frame(self.root)
@@ -1640,7 +1647,8 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
                                  bg=self.colors["bg_light"], fg=self.colors["fg"],
                                  buttonbackground=self.colors["bg_lighter"],
                                  insertbackground=self.colors["fg"],
-                                 selectbackground=self.colors["accent"],
+                                 selectbackground=self.colors["select"],
+                                 selectforeground=self.colors["fg"],
                                  relief=tk.FLAT, bd=1)
             spinbox.pack(side=tk.LEFT, padx=2)
         
@@ -2715,10 +2723,10 @@ addons = [Addon()]
         self.selected_hero_index = index
         if 0 <= index < len(self.hero_row_widgets):
             new_row = self.hero_row_widgets[index]
-            new_row.config(bg=self.colors["accent"])
+            new_row.config(bg=self.colors["select"])
             new_hero_data = self.hero_data_list[index]
             for j, lbl in enumerate(new_row.labels):
-                lbl.config(bg=self.colors["accent"])
+                lbl.config(bg=self.colors["select"])
                 # Keep attribute color for attribute column
                 if j == 2:
                     attr_color = ATTRIBUTE_COLORS.get(new_hero_data["attribute"], self.colors["fg"])

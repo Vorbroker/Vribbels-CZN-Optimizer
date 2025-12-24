@@ -335,6 +335,19 @@ CHARACTERS = {
         "node_50": "CRate",
         "node_60": "CDmg",
     },
+    30075: {
+        "name": "Sereniel",
+        "grade": 5,
+        "attribute": "Instinct",
+        "class": "Hunter",
+        "base_atk": 491,
+        "base_def": 155,
+        "base_hp": 329,
+        "base_crit_rate": 3.0,
+        "base_crit_dmg": 125.0,
+        "node_50": "CRate",
+        "node_60": "CDmg",
+    },
 }
 
 # Build reverse lookup: name -> character data (for lookups by name)

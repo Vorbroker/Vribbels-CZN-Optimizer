@@ -492,6 +492,22 @@ PARTNERS = {
         "ego_cost": 2,
         "ego_desc": "200% Defense-based Damage to all enemies.\n 1 Counterattack.\n If any enemy's Anticipated Action is attack, 1 Counterattack.",
     },
+    30076: {
+        "name": "Peko",
+        "grade": 5,
+        "class": "Hunter",
+        "passive_name": "Peko's Multi-Purpose Kit",
+        "passive_desc": "Increase the assigned Combatant's Attack by {ATK%}%. When the assigned Combatant's card Moves from the Graveyard to hand, gain 1 Repairs Complete. Repairs Complete: +{RepairsDMG%}% Damage Amount to the assigned Combatant's Attack Cards (Max-3) Increase Damage Amount of the assigned Combatant's Attack Cards that are used against Ravaged targets by {RavagedDMG%}%.",
+        "values": {
+            "ATK%": (8, 10, 12, 14, 16),
+            "RepairsDMG%": (10, 13, 15, 18, 20),
+            "RavagedDMG%": (15, 19, 23, 27, 30),
+        },
+        "stats": {"ATK%": (8, 10, 12, 14, 16)},
+        "ego_name": "Overclock Beacon",
+        "ego_cost": 3,
+        "ego_desc": "When an ally inflicts Ravage, 1 Overclock to the assigned Combatant (1 per turn).",
+    },
 }
 
 # Base stats by grade and class at level 60
