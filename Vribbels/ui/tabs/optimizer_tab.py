@@ -367,15 +367,100 @@ class OptimizerTab(BaseTab):
 
     def run_optimization(self):
         """Start optimization in background thread."""
-        pass
+        char_name = self.selected_character.get()
+        if not char_name:
+            messagebox.showwarning("Warning", "Please select a hero")
+            return
+
+        # Validate at least one main stat selected
+        has_any_main_selected = False
+        for slot_num in [4, 5, 6]:
+            slot_vars = self.main_stat_vars.get(slot_num, {})
+            if any(v.get() for v in slot_vars.values()):
+                has_any_main_selected = True
+                break
+
+        if not has_any_main_selected:
+            messagebox.showwarning("Warning",
+                                   "Please select at least one main stat option for slots IV, V, or VI")
+            return
+
+        self.cancel_flag[0] = False
+
+        # Build settings dictionary
+        # Get selected 4-piece sets (multi-select)
+        selected_4pc = []
+        for name, var in self.four_piece_vars.items():
+            if var.get():
+                for sid, sinfo in SETS.items():
+                    if sinfo["name"] == name:
+                        selected_4pc.append(sid)
+                        break
+
+        settings = {
+            "four_piece_sets": selected_4pc,
+            "two_piece_sets": [],
+            "main_stat_4": [n for n, v in self.main_stat_vars.get(4, {}).items() if v.get()],
+            "main_stat_5": [n for n, v in self.main_stat_vars.get(5, {}).items() if v.get()],
+            "main_stat_6": [n for n, v in self.main_stat_vars.get(6, {}).items() if v.get()],
+            "top_percent": self.top_percent_var.get(),
+            "include_equipped": self.include_equipped_var.get(),
+            "excluded_heroes": [h for h, v in self.exclude_hero_vars.items() if v.get()],
+            "max_results": 100,
+        }
+
+        # Get selected 2-piece sets from checkboxes
+        for name, var in self.two_piece_vars.items():
+            if var.get():
+                for sid, sinfo in SETS.items():
+                    if sinfo["name"] == name:
+                        settings["two_piece_sets"].append(sid)
+                        break
+
+        # Update priorities in optimizer
+        for name, var in self.priority_vars.items():
+            self.optimizer.priorities[name] = var.get()
+        self.optimizer.recalculate_scores()
+
+        self.progress_label.config(text="Starting...")
+        self.result_tree.delete(*self.result_tree.get_children())
+
+        def optimize_thread():
+            def progress_cb(checked, total, found):
+                self.result_queue.put(("progress", checked, total, found))
+            results = self.optimizer.optimize(char_name, settings, progress_cb, self.cancel_flag)
+            self.result_queue.put(("done", results))
+
+        threading.Thread(target=optimize_thread, daemon=True).start()
 
     def cancel_optimization(self):
         """Cancel running optimization."""
-        pass
+        self.cancel_flag[0] = True
+        self.progress_label.config(text="Cancelling...")
 
     def check_queue(self):
         """Poll result queue for progress updates and completion."""
-        pass
+        try:
+            while True:
+                msg = self.result_queue.get_nowait()
+                if msg[0] == "progress":
+                    _, checked, total, found = msg
+                    pct = (checked / total * 100) if total > 0 else 0
+                    self.progress_label.config(
+                        text=f"Checked {checked:,} ({pct:.1f}%) - Found {found}"
+                    )
+                elif msg[0] == "done":
+                    results = msg[1]
+                    self.optimization_results = results
+                    self.display_results(results)
+                    self.progress_label.config(
+                        text=f"Done! {len(results)} builds found"
+                    )
+        except queue.Empty:
+            pass
+
+        # Continue polling every 100ms
+        self.root.after(100, self.check_queue)
 
     # === Display Methods ===
 
