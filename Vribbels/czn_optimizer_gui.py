@@ -1098,36 +1098,12 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
     def load_data(self, filepath: str):
         try:
             self.optimizer.load_data(filepath)
-            self.status_label.config(text=f"Loaded {len(self.optimizer.fragments)} fragments", foreground=self.colors["green"])
-            
-            all_heroes = set(self.optimizer.characters.keys()) | set(self.optimizer.character_info.keys())
-            self.hero_combo["values"] = sorted(all_heroes)
-            
-            # Update inventory set filters
-            self.inventory_tab_instance.populate_set_filters()
-            
-            # Update exclude combatants with 6 columns and colored names
-            for widget in self.exclude_heroes_frame.winfo_children():
-                widget.destroy()
-            self.exclude_hero_vars.clear()
-            
-            heroes = sorted(self.optimizer.characters.keys())
-            for i, hero in enumerate(heroes):
-                var = tk.BooleanVar(value=False)
-                self.exclude_hero_vars[hero] = var
-                row = i // 6
-                col = i % 6
-                # Get attribute color for this hero
-                hero_data = get_character_by_name(hero)
-                attribute = hero_data.get("attribute", "Unknown")
-                fg_color = ATTRIBUTE_COLORS.get(attribute, self.colors["fg"])
-                # Create checkbutton with colored text
-                cb = tk.Checkbutton(self.exclude_heroes_frame, text=hero, variable=var,
-                                   bg=self.colors["bg"], fg=fg_color, selectcolor=self.colors["bg_light"],
-                                   activebackground=self.colors["bg"], activeforeground=fg_color,
-                                   font=("Segoe UI", 9), anchor=tk.W, width=9)
-                cb.grid(row=row, column=col, sticky=tk.W)
 
+            # Update optimizer tab UI
+            self.optimizer_tab_instance.refresh_after_load()
+
+            # Update other tabs
+            self.inventory_tab_instance.populate_set_filters()
             self.inventory_tab_instance.refresh_inventory()
             self.refresh_heroes()
             self.materials_tab_instance.refresh_materials()
