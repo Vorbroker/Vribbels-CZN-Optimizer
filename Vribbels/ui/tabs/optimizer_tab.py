@@ -644,12 +644,40 @@ class OptimizerTab(BaseTab):
 
     def on_hero_select(self, event=None):
         """Handle hero selection from dropdown."""
-        pass
+        char = self.selected_character.get()
+        if char in self.optimizer.characters:
+            self.show_current_stats(char)
 
     def on_priority_change(self, stat_name: str):
         """Handle priority slider change."""
-        pass
+        for name, var in self.priority_vars.items():
+            self.optimizer.priorities[name] = var.get()
+            self.priority_labels[name].config(text=str(var.get()))
+        self.optimizer.recalculate_scores()
 
     def reset_settings(self):
         """Reset all settings to defaults."""
-        pass
+        # Reset priority sliders
+        for var in self.priority_vars.values():
+            var.set(0)
+        for lbl in self.priority_labels.values():
+            lbl.config(text="0")
+
+        # Reset set filters
+        for var in self.four_piece_vars.values():
+            var.set(False)
+        for var in self.two_piece_vars.values():
+            var.set(False)
+
+        # Reset main stats
+        for slot_vars in self.main_stat_vars.values():
+            for var in slot_vars.values():
+                var.set(False)
+
+        # Reset options
+        self.top_percent_var.set(50)
+        self.include_equipped_var.set(True)
+
+        # Reset exclude heroes
+        for var in self.exclude_hero_vars.values():
+            var.set(False)
