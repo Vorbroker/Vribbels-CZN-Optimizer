@@ -174,6 +174,80 @@ class OptimizerTab(BaseTab):
                                         lambda *a: self.top_pct_label.config(
                                             text=f"{self.top_percent_var.get()}%"))
 
+        # Main stat filters for slots IV, V, VI
+        main_stat_frame = ttk.LabelFrame(middle_frame, text="Main Stats (Slots IV/V/VI)",
+                                         padding=5)
+        main_stat_frame.pack(fill=tk.X, pady=(0, 5))
+
+        for slot_num, slot_name in [(4, "IV"), (5, "V"), (6, "VI")]:
+            slot_frame = ttk.Frame(main_stat_frame)
+            slot_frame.pack(fill=tk.X, pady=1)
+            ttk.Label(slot_frame, text=f"{slot_name}:", width=3,
+                      font=("Segoe UI", 9)).pack(side=tk.LEFT)
+
+            self.main_stat_vars[slot_num] = {}
+            possible_mains = SLOT_MAIN_STATS[slot_num]
+
+            for main in possible_mains[:8]:
+                var = tk.BooleanVar(value=False)
+                self.main_stat_vars[slot_num][main] = var
+                # Truncate display but keep full name in var
+                short_name = main.replace("%", "").replace(" DMG", "").replace("Flat ", "F.")[:8]
+                ttk.Checkbutton(slot_frame, text=short_name, variable=var,
+                                width=8).pack(side=tk.LEFT)
+
+        # Set configuration (4-piece and 2-piece multi-select)
+        set_frame = ttk.LabelFrame(middle_frame, text="Set Configuration", padding=5)
+        set_frame.pack(fill=tk.X, pady=(0, 5))
+
+        # 4-piece sets with checkboxes
+        four_pc_frame = ttk.Frame(set_frame)
+        four_pc_frame.pack(fill=tk.X, pady=2)
+        ttk.Label(four_pc_frame, text="4-Piece Sets:",
+                  font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+
+        four_pc_inner = ttk.Frame(four_pc_frame)
+        four_pc_inner.pack(fill=tk.X, padx=5)
+        for i, sid in enumerate(FOUR_PIECE_SETS):
+            name = SETS[sid]["name"]
+            var = tk.BooleanVar(value=False)
+            self.four_piece_vars[name] = var
+            row = i // 2
+            col = i % 2
+            ttk.Checkbutton(four_pc_inner, text=name, variable=var).grid(
+                row=row, column=col, sticky=tk.W, padx=5)
+
+        # 2-piece sets with checkboxes
+        two_pc_frame = ttk.Frame(set_frame)
+        two_pc_frame.pack(fill=tk.X, pady=(5, 2))
+        ttk.Label(two_pc_frame, text="2-Piece Sets:",
+                  font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+
+        two_pc_inner = ttk.Frame(two_pc_frame)
+        two_pc_inner.pack(fill=tk.X, padx=5)
+        for i, sid in enumerate(TWO_PIECE_SETS):
+            name = SETS[sid]["name"]
+            var = tk.BooleanVar(value=False)
+            self.two_piece_vars[name] = var
+            row = i // 3
+            col = i % 3
+            ttk.Checkbutton(two_pc_inner, text=name, variable=var).grid(
+                row=row, column=col, sticky=tk.W, padx=5)
+
+        # Include equipped checkbox
+        opt_frame = ttk.Frame(set_frame)
+        opt_frame.pack(fill=tk.X, pady=3)
+        ttk.Checkbutton(opt_frame, text="Include Equipped Items",
+                        variable=self.include_equipped_var).pack(anchor=tk.W)
+
+        # Exclude heroes configuration
+        exclude_frame = ttk.LabelFrame(middle_frame, text="Exclude Combatant's Gear",
+                                       padding=5)
+        exclude_frame.pack(fill=tk.X, pady=(0, 5))
+
+        self.exclude_heroes_frame = ttk.Frame(exclude_frame)
+        self.exclude_heroes_frame.pack(fill=tk.X)
+
         # Right pane: Results (will be populated in later task)
         right_frame = ttk.LabelFrame(main_pane, text="Results", padding=5)
         main_pane.add(right_frame, weight=2)
