@@ -83,7 +83,31 @@ class OptimizerTab(BaseTab):
 
     def setup_ui(self):
         """Build the optimization tab UI."""
-        pass  # Will implement in subsequent tasks
+        # Toolbar with Load Data, hero selector, Start/Stop/Reset buttons
+        toolbar = ttk.Frame(self.frame)
+        toolbar.pack(fill=tk.X, padx=5, pady=5)
+
+        ttk.Button(toolbar, text="Load Data",
+                   command=self.context.load_data_callback).pack(side=tk.LEFT, padx=2)
+
+        ttk.Label(toolbar, text="Combatant:").pack(side=tk.LEFT, padx=(15, 5))
+        self.hero_combo = ttk.Combobox(toolbar, textvariable=self.selected_character,
+                                       width=12, state="readonly")
+        self.hero_combo.pack(side=tk.LEFT)
+        self.hero_combo.bind("<<ComboboxSelected>>", self.on_hero_select)
+
+        ttk.Button(toolbar, text="Start",
+                   command=self.run_optimization).pack(side=tk.LEFT, padx=(15, 2))
+        ttk.Button(toolbar, text="Stop",
+                   command=self.cancel_optimization).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Reset",
+                   command=self.reset_settings).pack(side=tk.LEFT, padx=2)
+
+        self.status_label = ttk.Label(toolbar, text="No data loaded",
+                                      foreground=self.colors["fg_dim"])
+        self.status_label.pack(side=tk.RIGHT, padx=10)
+
+        # Main 3-pane layout will be added next
 
     # === Public API (called by main GUI) ===
 
