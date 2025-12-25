@@ -318,15 +318,50 @@ class OptimizerTab(BaseTab):
 
     def refresh_after_load(self):
         """Called after data loads to update UI components."""
-        pass
+        fragment_count = len(self.optimizer.fragments)
+        self.status_label.config(
+            text=f"Loaded {fragment_count} fragments",
+            foreground=self.colors["green"]
+        )
+        self.refresh_hero_list()
+        self.refresh_exclude_heroes()
 
     def refresh_hero_list(self):
         """Update hero combo dropdown with loaded heroes."""
-        pass
+        all_heroes = set(self.optimizer.characters.keys()) | \
+                     set(self.optimizer.character_info.keys())
+        self.hero_combo["values"] = sorted(all_heroes)
 
     def refresh_exclude_heroes(self):
         """Populate exclude hero checkboxes with colored names."""
-        pass
+        # Clear existing checkboxes
+        for widget in self.exclude_heroes_frame.winfo_children():
+            widget.destroy()
+        self.exclude_hero_vars.clear()
+
+        # Repopulate with colored names (6 columns)
+        heroes = sorted(self.optimizer.characters.keys())
+        for i, hero in enumerate(heroes):
+            var = tk.BooleanVar(value=False)
+            self.exclude_hero_vars[hero] = var
+            row = i // 6
+            col = i % 6
+
+            # Get attribute color for this hero
+            hero_data = get_character_by_name(hero)
+            attribute = hero_data.get("attribute", "Unknown")
+            fg_color = ATTRIBUTE_COLORS.get(attribute, self.colors["fg"])
+
+            # Create checkbutton with colored text
+            cb = tk.Checkbutton(
+                self.exclude_heroes_frame, text=hero, variable=var,
+                bg=self.colors["bg"], fg=fg_color,
+                selectcolor=self.colors["bg_light"],
+                activebackground=self.colors["bg"],
+                activeforeground=fg_color,
+                font=("Segoe UI", 9), anchor=tk.W, width=9
+            )
+            cb.grid(row=row, column=col, sticky=tk.W)
 
     # === Optimization Lifecycle ===
 
