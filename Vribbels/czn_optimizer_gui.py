@@ -30,7 +30,7 @@ from game_data import *
 from models import *
 from capture import *
 from optimizer import GearOptimizer
-from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab
+from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab
 
 
 class MultiSelectListbox(tk.Frame):
@@ -164,9 +164,10 @@ class OptimizerGUI:
         # Update AppContext with notebook reference
         self.app_context.notebook = self.notebook
 
-        self.optimizer_tab = ttk.Frame(self.notebook)
+        # Create OptimizerTab instance
+        self.optimizer_tab_instance = OptimizerTab(self.notebook, self.app_context)
+        self.optimizer_tab = self.optimizer_tab_instance.get_frame()
         self.notebook.add(self.optimizer_tab, text="Optimizer")
-        self.setup_optimizer_tab()
 
         # Inventory tab - using UI module
         self.inventory_tab_instance = InventoryTab(self.notebook, self.app_context)
