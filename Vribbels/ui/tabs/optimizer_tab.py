@@ -107,7 +107,34 @@ class OptimizerTab(BaseTab):
                                       foreground=self.colors["fg_dim"])
         self.status_label.pack(side=tk.RIGHT, padx=10)
 
-        # Main 3-pane layout will be added next
+        # Main 3-pane layout: Stats Comparison | Configuration | Results
+        main_pane = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
+        main_pane.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Left pane: Stats Comparison
+        left_frame = ttk.LabelFrame(main_pane, text="Stats Comparison", padding=5)
+        main_pane.add(left_frame, weight=1)
+
+        self.stats_tree = ttk.Treeview(left_frame,
+                                       columns=("stat", "current", "new", "diff"),
+                                       show="headings", height=22)
+        self.stats_tree.heading("stat", text="Stat")
+        self.stats_tree.heading("current", text="Current")
+        self.stats_tree.heading("new", text="New")
+        self.stats_tree.heading("diff", text="+/-")
+        self.stats_tree.column("stat", width=90)
+        self.stats_tree.column("current", width=65, anchor=tk.E)
+        self.stats_tree.column("new", width=65, anchor=tk.E)
+        self.stats_tree.column("diff", width=55, anchor=tk.E)
+        self.stats_tree.pack(fill=tk.BOTH, expand=True)
+
+        # Middle pane: Configuration (will be populated in next task)
+        middle_frame = ttk.Frame(main_pane)
+        main_pane.add(middle_frame, weight=1)
+
+        # Right pane: Results (will be populated in later task)
+        right_frame = ttk.LabelFrame(main_pane, text="Results", padding=5)
+        main_pane.add(right_frame, weight=2)
 
     # === Public API (called by main GUI) ===
 
