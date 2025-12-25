@@ -466,19 +466,179 @@ class OptimizerTab(BaseTab):
 
     def display_results(self, results: list):
         """Display optimization results in tree."""
-        pass
+        self.result_tree.delete(*self.result_tree.get_children())
+        for i, (gear, score, stats) in enumerate(results[:100]):
+            set_counts = {}
+            for p in gear:
+                set_counts[p.set_name] = set_counts.get(p.set_name, 0) + 1
+            sets_str = " + ".join(f"{c}x{n[:10]}" for n, c in set_counts.items() if c >= 2)
+
+            atk = stats.get("ATK", 0)
+            hp = stats.get("HP", 0)
+            def_stat = stats.get("DEF", 0)
+            crit_rate = stats.get("CRate", 0)
+            crit_dmg = stats.get("CDmg", 0)
+            extra_dmg = stats.get("Extra DMG%", 0)
+
+            self.result_tree.insert("", tk.END, values=(
+                i+1, f"{score:.0f}", sets_str,
+                f"{atk:.0f}", f"{hp:.0f}", f"{def_stat:.0f}",
+                f"{crit_rate:.1f}", f"{crit_dmg:.1f}", f"{extra_dmg:.1f}"
+            ), iid=str(i))
 
     def sort_results(self, col: str):
         """Sort results by column."""
-        pass
+        if not self.optimization_results:
+            return
+
+        # Toggle sort direction if same column
+        if col == self.result_sort_col:
+            self.result_sort_reverse = not self.result_sort_reverse
+        else:
+            self.result_sort_col = col
+            self.result_sort_reverse = False
+
+        # Column key functions
+        col_map = {
+            "rank": lambda x: x[0],
+            "score": lambda x: x[1],
+            "sets": lambda x: "",
+            "atk": lambda x: x[2].get("ATK", 0),
+            "hp": lambda x: x[2].get("HP", 0),
+            "def": lambda x: x[2].get("DEF", 0),
+            "crate": lambda x: x[2].get("CRate", 0),
+            "cdmg": lambda x: x[2].get("CDmg", 0),
+            "extra": lambda x: x[2].get("Extra DMG%", 0),
+        }
+
+        key_func = col_map.get(col, lambda x: x[1])
+        indexed_results = [(i, gear, score, stats)
+                           for i, (gear, score, stats) in enumerate(self.optimization_results)]
+        indexed_results.sort(key=lambda x: key_func((x[0], x[2], x[3])),
+                             reverse=not self.result_sort_reverse)
+
+        # Redisplay sorted results
+        self.result_tree.delete(*self.result_tree.get_children())
+        for rank, (orig_idx, gear, score, stats) in enumerate(indexed_results[:100]):
+            set_counts = {}
+            for p in gear:
+                set_counts[p.set_name] = set_counts.get(p.set_name, 0) + 1
+            sets_str = " + ".join(f"{c}x{n[:10]}" for n, c in set_counts.items() if c >= 2)
+
+            self.result_tree.insert("", tk.END, values=(
+                rank+1, f"{score:.0f}", sets_str,
+                f"{stats.get('ATK', 0):.0f}", f"{stats.get('HP', 0):.0f}",
+                f"{stats.get('DEF', 0):.0f}",
+                f"{stats.get('CRate', 0):.1f}", f"{stats.get('CDmg', 0):.1f}",
+                f"{stats.get('Extra DMG%', 0):.1f}"
+            ), iid=str(orig_idx))
 
     def on_result_select(self, event):
         """Show selected build details and stats comparison."""
-        pass
+        sel = self.result_tree.selection()
+        if not sel:
+            return
+        idx = int(sel[0])
+        if idx >= len(self.optimization_results):
+            return
+
+        gear, score, new_stats = self.optimization_results[idx]
+        char = self.selected_character.get()
+        current_gear = self.optimizer.characters.get(char, [])
+        current_stats = self.optimizer.calculate_build_stats(current_gear, char)
+
+        # Update stats comparison tree
+        self.stats_tree.delete(*self.stats_tree.get_children())
+
+        stat_order = [
+            ("- Totals -", None),
+            ("ATK", 0), ("DEF", 0), ("HP", 0), ("CRate", 1), ("CDmg", 1),
+            ("- Substats -", None),
+            ("ATK%", 1), ("DEF%", 1), ("HP%", 1), ("Ego", 0), ("Extra DMG%", 1), ("DoT%", 1),
+            ("- Calculated -", None),
+            ("EHP", 0), ("Avg DMG", 0), ("Max CD", 0), ("Bruiser", 0),
+        ]
+
+        for stat_name, decimals in stat_order:
+            if decimals is None:
+                self.stats_tree.insert("", tk.END, values=(stat_name, "", "", ""),
+                                       tags=("header",))
+                continue
+
+            curr = current_stats.get(stat_name, 0)
+            new = new_stats.get(stat_name, 0)
+            diff = new - curr
+
+            if decimals == 0:
+                curr_fmt = f"{curr:.0f}"
+                new_fmt = f"{new:.0f}"
+                diff_fmt = f"+{diff:.0f}" if diff > 0 else f"{diff:.0f}"
+            else:
+                curr_fmt = f"{curr:.1f}"
+                new_fmt = f"{new:.1f}"
+                diff_fmt = f"+{diff:.1f}" if diff > 0 else f"{diff:.1f}"
+
+            if curr == 0 and new == 0:
+                continue
+
+            tag = "pos" if diff > 0.1 else "neg" if diff < -0.1 else ""
+            self.stats_tree.insert("", tk.END,
+                                   values=(stat_name, curr_fmt, new_fmt, diff_fmt),
+                                   tags=(tag,))
+
+        self.stats_tree.tag_configure("pos", foreground=self.colors["green"])
+        self.stats_tree.tag_configure("neg", foreground=self.colors["red"])
+        self.stats_tree.tag_configure("header", foreground=self.colors["fg_dim"])
+
+        # Update detail tree with gear pieces
+        self.detail_tree.delete(*self.detail_tree.get_children())
+        for p in sorted(gear, key=lambda x: x.slot_num):
+            subs = []
+            for s in p.substats[:4]:
+                subs.append(f"{s.name}:{s.format_value()}")
+            while len(subs) < 4:
+                subs.append("-")
+
+            main_str = f"{p.main_stat.name}:{p.main_stat.format_value()}" if p.main_stat else "-"
+            pot = f"{p.potential_low:.0f}-{p.potential_high:.0f}" if p.potential_low != p.potential_high else "-"
+            owner = p.equipped_to or ""
+
+            self.detail_tree.insert("", tk.END, values=(
+                f"+{p.level} {p.slot_name}",
+                p.set_name, main_str, *subs, f"{p.gear_score:.0f}", pot, owner
+            ), tags=(f"r{p.rarity_num}",))
+
+        self.detail_tree.tag_configure("r4", foreground=RARITY_COLORS[4])
+        self.detail_tree.tag_configure("r3", foreground=RARITY_COLORS[3])
 
     def show_current_stats(self, char_name: str):
         """Display current gear stats for character."""
-        pass
+        gear = self.optimizer.characters.get(char_name, [])
+        stats = self.optimizer.calculate_build_stats(gear, char_name)
+        self.stats_tree.delete(*self.stats_tree.get_children())
+
+        stat_order = [
+            ("- Totals -", None),
+            ("ATK", 0), ("DEF", 0), ("HP", 0), ("CRate", 1), ("CDmg", 1),
+            ("- Substats -", None),
+            ("ATK%", 1), ("DEF%", 1), ("HP%", 1), ("Ego", 0), ("Extra DMG%", 1), ("DoT%", 1),
+            ("- Calculated -", None),
+            ("EHP", 0), ("Avg DMG", 0), ("Max CD", 0), ("Bruiser", 0),
+        ]
+
+        for stat_name, decimals in stat_order:
+            if decimals is None:
+                self.stats_tree.insert("", tk.END, values=(stat_name, "", "", ""),
+                                       tags=("header",))
+                continue
+
+            val = stats.get(stat_name, 0)
+            if val == 0:
+                continue
+            fmt = f"{val:.0f}" if decimals == 0 else f"{val:.1f}"
+            self.stats_tree.insert("", tk.END, values=(stat_name, fmt, "-", "-"))
+
+        self.stats_tree.tag_configure("header", foreground=self.colors["fg_dim"])
 
     # === UI Event Handlers ===
 
