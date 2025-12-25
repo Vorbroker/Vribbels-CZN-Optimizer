@@ -497,7 +497,7 @@ PARTNERS = {
         "grade": 5,
         "class": "Hunter",
         "passive_name": "Peko's Multi-Purpose Kit",
-        "passive_desc": "Increase the assigned Combatant's Attack by {ATK%}%. When the assigned Combatant's card Moves from the Graveyard to hand, gain 1 Repairs Complete. Repairs Complete: +{RepairsDMG%}% Damage Amount to the assigned Combatant's Attack Cards (Max-3) Increase Damage Amount of the assigned Combatant's Attack Cards that are used against Ravaged targets by {RavagedDMG%}%.",
+        "passive_desc": "Increase the assigned Combatant's Attack by {ATK%}%.\nWhen the assigned Combatant's card Moves from the Graveyard to hand, gain 1 Repairs Complete.\nRepairs Complete: +{RepairsDMG%}% Damage Amount to the assigned Combatant's Attack Cards (Max-3) \nIncrease Damage Amount of the assigned Combatant's Attack Cards that are used against Ravaged targets by {RavagedDMG%}%.",
         "values": {
             "ATK%": (8, 10, 12, 14, 16),
             "RepairsDMG%": (10, 13, 15, 18, 20),

@@ -26,409 +26,10 @@ from datetime import datetime
 from PIL import Image, ImageTk, ImageDraw, ImageFont
 
 # === GAME DATA IMPORTS ===
-
-# Import all game data (characters, partners, sets, constants, and helper functions)
-# See game_data/__init__.py for the complete list of exports
 from game_data import *
-
-# === DATA MODELS ===
-
-# Import all data model classes
 from models import *
-
-class GearOptimizer:
-    def __init__(self):
-        self.fragments: list[MemoryFragment] = []
-        self.characters: dict[str, list[MemoryFragment]] = {}
-        self.character_info: dict[str, CharacterInfo] = {}
-        self.user_info: UserInfo = UserInfo()
-        self.unequipped: list[MemoryFragment] = []
-        self.capture_time = ""
-        self.priorities: dict[str, int] = {name: 0 for name in ALL_STAT_NAMES}
-        self.raw_data = {}
-
-    def load_data(self, filepath: str):
-        with open(filepath, "r") as f:
-            data = json.load(f)
-        
-        self.raw_data = data
-        self.capture_time = data.get("capture_time", "Unknown")
-        self.fragments = []
-        self.characters = {}
-        self.character_info = {}
-        self.unequipped = []
-
-        if "inventory" in data:
-            inventory = data["inventory"]
-            piece_items = inventory.get("piece_items", [])
-        elif "piece_items" in data:
-            piece_items = data["piece_items"]
-        else:
-            piece_items = []
-
-        char_data = data.get("characters", {})
-        self._parse_character_data(char_data)
-
-        for item in piece_items:
-            try:
-                fragment = MemoryFragment.from_json(item)
-                fragment.calculate_base_score()
-                fragment.calculate_potential()
-                fragment.calculate_priority_score(self.priorities)
-                self.fragments.append(fragment)
-                if fragment.equipped_to:
-                    if fragment.equipped_to not in self.characters:
-                        self.characters[fragment.equipped_to] = []
-                    self.characters[fragment.equipped_to].append(fragment)
-                else:
-                    self.unequipped.append(fragment)
-            except Exception as e:
-                print(f"Error parsing fragment: {e}")
-
-        for char_gear in self.characters.values():
-            char_gear.sort(key=lambda f: f.slot_num)
-
-    def _parse_character_data(self, char_data: dict):
-        if not char_data:
-            return
-        
-        user = char_data.get("user", {})
-        if user:
-            self.user_info = UserInfo(
-                nickname=user.get("nickname", ""),
-                level=user.get("lv", 1),
-                login_total=user.get("login_total_count", 0),
-                login_continuous=user.get("login_continuous_count", 0),
-                login_highest_continuous=user.get("highest_login_continuous_count", 0),
-            )
-        
-        char_items = char_data.get("characters", [])
-        if isinstance(char_items, dict):
-            char_items = char_items.get("characters", []) or char_items.get("char_items", [])
-        
-        partner_lookup = {}
-        hero_items = []
-        
-        for char in char_items:
-            res_id = char.get("res_id", 0)
-            if res_id >= 20000 and res_id < 30000:
-                partner_lookup[char.get("id", 0)] = char
-            else:
-                hero_items.append(char)
-        
-        for char in hero_items:
-            res_id = char.get("res_id", 0)
-            char_data = get_character(res_id)
-            name = char_data.get("name", f"Unknown ({res_id})")
-            
-            if not name or name == "Unknown" or name.startswith("Unknown ("):
-                continue
-            
-            exp = char.get("exp", 0)
-            level = get_level_from_exp(exp)
-            ascend = char.get("ascend", 0)
-            max_level = (ascend + 1) * 10
-            limit_break = char.get("limit_break", 0)
-            friendship_index = char.get("friendship_reward_index", 1)
-            friendship_bonus = get_friendship_bonus(friendship_index)
-            
-            partner_id = char.get("partner_id", 0) or char.get("partner", 0)
-            partner_name = ""
-            partner_res_id = 0
-            partner_exp = 0
-            partner_level = 1
-            partner_ascend = 0
-            partner_max_level = 10
-            partner_limit_break = 0
-            
-            if partner_id and partner_id in partner_lookup:
-                partner = partner_lookup[partner_id]
-                partner_res_id = partner.get("res_id", 0)
-                partner_data = get_partner(partner_res_id)
-                partner_name = partner_data.get("name", f"Unknown ({partner_res_id})")
-                partner_exp = partner.get("exp", 0)
-                partner_level = get_partner_level_from_exp(partner_exp)  # Use partner exp table
-                partner_ascend = partner.get("ascend", 0)
-                partner_max_level = (partner_ascend + 1) * 10
-                # Cap partner level at max
-                partner_level = min(partner_level, partner_max_level)
-                partner_limit_break = partner.get("limit_break", 0)
-            
-            # Parse potential node IDs
-            potential_str = char.get("potential_node_ids", "[]")
-            potential_nodes = parse_potential_node_ids(potential_str, res_id)
-            potential_50_level = potential_nodes.get(50, 0)
-            potential_60_level = potential_nodes.get(60, 0)
-            
-            self.character_info[name] = CharacterInfo(
-                res_id=res_id, name=name, exp=exp, level=level, ascend=ascend,
-                max_level=max_level, limit_break=limit_break,
-                friendship_index=friendship_index, friendship_bonus=friendship_bonus,
-                partner_id=partner_id, partner_name=partner_name,
-                partner_res_id=partner_res_id, partner_exp=partner_exp,
-                partner_level=partner_level, partner_ascend=partner_ascend,
-                partner_max_level=partner_max_level, partner_limit_break=partner_limit_break,
-                potential_node_ids=list(potential_nodes.keys()),
-                potential_50_level=potential_50_level,
-                potential_60_level=potential_60_level,
-            )
-
-    def recalculate_scores(self):
-        for f in self.fragments:
-            f.calculate_priority_score(self.priorities)
-
-    def get_gear_by_slot(self, slot_num: int, include_equipped: bool = True, 
-                         exclude_char: str = None, excluded_heroes: list[str] = None,
-                         required_sets: list[int] = None, 
-                         required_main: list[str] = None, top_percent: float = 100,
-                         use_priority_score: bool = False, min_rarity: int = 2) -> list[MemoryFragment]:
-        """Get gear for a slot with filters"""
-        candidates = [f for f in self.fragments if f.slot_num == slot_num and f.rarity_num >= min_rarity]
-        
-        if excluded_heroes:
-            candidates = [f for f in candidates if f.equipped_to not in excluded_heroes]
-        
-        if not include_equipped:
-            candidates = [f for f in candidates if not f.equipped_to or f.equipped_to == exclude_char]
-        
-        if required_sets:
-            candidates = [f for f in candidates if f.set_id in required_sets]
-        
-        if required_main and slot_num in [4, 5, 6]:
-            candidates = [f for f in candidates if f.main_stat and f.main_stat.name in required_main]
-        
-        if use_priority_score:
-            candidates.sort(key=lambda f: -f.priority_score)
-        else:
-            candidates.sort(key=lambda f: -f.gear_score)
-            
-        count = max(1, int(len(candidates) * top_percent / 100))
-        return candidates[:count]
-
-    def calculate_build_stats(self, gear: list[MemoryFragment], char_name: str = None) -> dict[str, float]:
-        base_atk, base_def, base_hp, base_cr, base_cd = 0, 0, 0, 0, 125.0
-        
-        if char_name:
-            char_data = get_character_by_name(char_name)
-            base_atk = char_data.get("base_atk", 0)
-            base_def = char_data.get("base_def", 0)
-            base_hp = char_data.get("base_hp", 0)
-            base_cr = char_data.get("base_crit_rate", 0)
-            base_cd = char_data.get("base_crit_dmg", 125.0)
-        
-        # Add friendship bonus and partner card stats
-        friendship_atk, friendship_def, friendship_hp = 0, 0, 0
-        partner_atk, partner_def, partner_hp = 0, 0, 0
-        partner_passive_stats = {}
-        potential_stats = {}  # Potential node bonuses
-        
-        if char_name and char_name in self.character_info:
-            char_info = self.character_info[char_name]
-            # Add friendship bonus
-            fb = char_info.friendship_bonus
-            friendship_atk, friendship_def, friendship_hp = fb[0], fb[1], fb[2]
-            
-            # Add partner card stats
-            if char_info.partner_res_id:
-                partner_stats = get_partner_stats(char_info.partner_res_id, char_info.partner_level)
-                partner_atk = partner_stats["atk"]
-                partner_def = partner_stats["def"]
-                partner_hp = partner_stats["hp"]
-                
-                # Add partner passive stats (unconditional bonuses)
-                partner_passive_stats = get_partner_passive_stats(
-                    char_info.partner_res_id, char_info.partner_limit_break
-                )
-            
-            # Add potential node bonuses (nodes 50 and 60)
-            if char_info.potential_50_level > 0:
-                stat_type, bonus = get_potential_stat_bonus(
-                    char_info.res_id, 50, char_info.potential_50_level
-                )
-                if stat_type:
-                    potential_stats[stat_type] = potential_stats.get(stat_type, 0) + bonus
-            
-            if char_info.potential_60_level > 0:
-                stat_type, bonus = get_potential_stat_bonus(
-                    char_info.res_id, 60, char_info.potential_60_level
-                )
-                if stat_type:
-                    potential_stats[stat_type] = potential_stats.get(stat_type, 0) + bonus
-        
-        atk_pct, def_pct, hp_pct = 0, 0, 0
-        flat_atk, flat_def, flat_hp = 0, 0, 0
-        crit_rate, crit_dmg = 0, 0
-        ego, extra_dmg, dot_dmg = 0, 0, 0
-        
-        # Add partner passive percentage bonuses
-        atk_pct += partner_passive_stats.get("ATK%", 0)
-        def_pct += partner_passive_stats.get("DEF%", 0)
-        hp_pct += partner_passive_stats.get("HP%", 0)
-        crit_dmg += partner_passive_stats.get("CDmg", 0)
-        extra_dmg += partner_passive_stats.get("Extra DMG%", 0)
-        
-        # Add potential node bonuses
-        atk_pct += potential_stats.get("ATK%", 0)
-        def_pct += potential_stats.get("DEF%", 0)
-        hp_pct += potential_stats.get("HP%", 0)
-        crit_rate += potential_stats.get("CRate", 0)
-        crit_dmg += potential_stats.get("CDmg", 0)
-        
-        for piece in gear:
-            piece_stats = piece.get_total_stats()
-            atk_pct += piece_stats.get("ATK%", 0)
-            def_pct += piece_stats.get("DEF%", 0)
-            hp_pct += piece_stats.get("HP%", 0)
-            flat_atk += piece_stats.get("Flat ATK", 0)
-            flat_def += piece_stats.get("Flat DEF", 0)
-            flat_hp += piece_stats.get("Flat HP", 0)
-            crit_rate += piece_stats.get("CRate", 0)
-            crit_dmg += piece_stats.get("CDmg", 0)
-            ego += piece_stats.get("Ego", 0)
-            extra_dmg += piece_stats.get("Extra DMG%", 0)
-            dot_dmg += piece_stats.get("DoT%", 0)
-        
-        set_counts = {}
-        for piece in gear:
-            set_counts[piece.set_id] = set_counts.get(piece.set_id, 0) + 1
-        
-        for set_id, count in set_counts.items():
-            if set_id in SETS:
-                set_info = SETS[set_id]
-                if count >= set_info["pieces"] and set_info["type"] == "stat":
-                    stat = set_info.get("stat", "")
-                    value = set_info.get("value", 0)
-                    if stat == "ATK%":
-                        atk_pct += value
-                    elif stat == "DEF%":
-                        def_pct += value
-                    elif stat == "HP%":
-                        hp_pct += value
-                    elif stat == "Crit DMG":
-                        crit_dmg += value
-        
-        total_atk = base_atk * (1 + atk_pct / 100) + flat_atk + friendship_atk + partner_atk
-        total_def = base_def * (1 + def_pct / 100) + flat_def + friendship_def + partner_def
-        total_hp = base_hp * (1 + hp_pct / 100) + flat_hp + friendship_hp + partner_hp
-        total_cr = base_cr + crit_rate
-        total_cd = base_cd + crit_dmg
-        
-        ehp = total_hp * (total_def / 300 + 1)
-        avg_dmg = total_atk * (total_cr / 100) * (total_cd / 100)
-        max_cd = total_atk * (total_cd / 100)
-        dmg_h = total_hp * (total_cd / 100)
-        
-        return {
-            "ATK": total_atk, "DEF": total_def, "HP": total_hp,
-            "CRate": total_cr, "CDmg": total_cd,
-            "ATK%": atk_pct, "DEF%": def_pct, "HP%": hp_pct,
-            "Ego": ego, "Extra DMG%": extra_dmg, "DoT%": dot_dmg,
-            "EHP": ehp, "Avg DMG": avg_dmg, "Max CD": max_cd, "Bruiser": dmg_h,
-        }
-
-    def optimize(self, char_name: str, settings: dict, progress_callback: Callable = None,
-                 cancel_flag: list = None) -> list[tuple[list[MemoryFragment], float, dict]]:
-        required_4pc_list = settings.get("four_piece_sets", [])  # Now a list for multi-select
-        required_2pc = settings.get("two_piece_sets", [])
-        main_stat_4 = settings.get("main_stat_4", [])
-        main_stat_5 = settings.get("main_stat_5", [])
-        main_stat_6 = settings.get("main_stat_6", [])
-        top_percent = settings.get("top_percent", 100)
-        include_equipped = settings.get("include_equipped", True)
-        excluded_heroes = settings.get("excluded_heroes", [])
-        max_results = settings.get("max_results", 100)
-
-        use_priority = any(v != 0 for v in self.priorities.values())
-        
-        # Combine all required sets for initial filtering
-        all_required_sets = []
-        for s in required_4pc_list:
-            if s and s not in all_required_sets:
-                all_required_sets.append(s)
-        for s in required_2pc:
-            if s and s not in all_required_sets:
-                all_required_sets.append(s)
-
-        slot_candidates = {}
-        for slot_num in SLOT_ORDER:
-            main_filter = None
-            if slot_num == 4 and main_stat_4:
-                main_filter = main_stat_4
-            elif slot_num == 5 and main_stat_5:
-                main_filter = main_stat_5
-            elif slot_num == 6 and main_stat_6:
-                main_filter = main_stat_6
-            
-            candidates = self.get_gear_by_slot(
-                slot_num,
-                include_equipped=include_equipped,
-                exclude_char=char_name,
-                excluded_heroes=excluded_heroes,
-                required_sets=all_required_sets if all_required_sets else None,
-                required_main=main_filter,
-                top_percent=top_percent,
-                use_priority_score=use_priority,
-                min_rarity=3  # Only Rare+ for optimizer
-            )
-            slot_candidates[slot_num] = candidates if candidates else []
-
-        for slot_num in SLOT_ORDER:
-            if not slot_candidates[slot_num]:
-                return []
-
-        total_perms = 1
-        for slot_num in SLOT_ORDER:
-            total_perms *= len(slot_candidates[slot_num])
-
-        results = []
-        checked = 0
-        
-        for combo in itertools.product(*[slot_candidates[s] for s in SLOT_ORDER]):
-            if cancel_flag and cancel_flag[0]:
-                break
-                
-            checked += 1
-            
-            piece_ids = [p.id for p in combo]
-            if len(piece_ids) != len(set(piece_ids)):
-                continue
-            
-            set_counts = {}
-            for piece in combo:
-                set_counts[piece.set_id] = set_counts.get(piece.set_id, 0) + 1
-            
-            # Check 4-piece set requirement (any of the selected 4-sets)
-            if required_4pc_list:
-                has_any_4pc = any(set_counts.get(req_set, 0) >= 4 for req_set in required_4pc_list)
-                if not has_any_4pc:
-                    continue
-            
-            # Check 2-piece requirements
-            valid = True
-            for req_set in required_2pc:
-                if req_set and set_counts.get(req_set, 0) < 2:
-                    valid = False
-                    break
-            if not valid:
-                continue
-            
-            if use_priority:
-                total_score = sum(p.priority_score for p in combo)
-            else:
-                total_score = sum(p.gear_score for p in combo)
-            stats = self.calculate_build_stats(list(combo), char_name)
-            
-            results.append((list(combo), total_score, stats))
-            
-            if progress_callback and checked % 5000 == 0:
-                progress_callback(checked, total_perms, len(results))
-            
-            if len(results) > max_results * 10:
-                results.sort(key=lambda x: -x[1])
-                results = results[:max_results]
-
-        results.sort(key=lambda x: -x[1])
-        return results[:max_results]
+from capture import *
+from optimizer import GearOptimizer
 
 
 class MultiSelectListbox(tk.Frame):
@@ -500,12 +101,14 @@ class OptimizerGUI:
         # Inventory multi-select state
         self.inv_slot_selections: set = set()
         self.inv_set_selections: set = set()
-        
-        self.capturing = False
-        self.proxy_process = None
-        self.game_server_ips = {}
-        self.captured_data = {}
-        
+
+        # Initialize capture manager
+        self.capture_manager = CaptureManager(
+            output_folder=OUTPUT_DIR,
+            log_callback=self.capture_log_msg,
+            status_callback=lambda status: self.capture_status_label.config(text=status) if hasattr(self, 'capture_status_label') else None
+        )
+
         self.setup_ui()
         self.auto_load()
         self.root.after(100, self.check_queue)
@@ -1431,7 +1034,7 @@ class OptimizerGUI:
                                            width=18, state=tk.DISABLED)
         self.capture_stop_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        ttk.Button(btn_frame, text="Open Captures", command=self.open_captures_folder, width=15).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(btn_frame, text="Open Snapshots", command=self.open_snapshots_folder, width=15).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(btn_frame, text="Load Latest", command=self.load_latest_capture, width=12).pack(side=tk.LEFT)
 
         req_frame = ttk.LabelFrame(main_frame, text="Requirements", padding=10)
@@ -1720,14 +1323,13 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
                                    foreground=self.colors["green"])
 
     def install_mitmproxy(self):
+        """Install mitmproxy using capture module."""
         def install_thread():
             try:
-                result = subprocess.run(["pip", "install", "mitmproxy"], capture_output=True, text=True, timeout=120)
+                success = install_mitmproxy()
                 self.root.after(0, lambda: self.check_setup_status())
-                if result.returncode == 0:
+                if success:
                     self.root.after(0, lambda: messagebox.showinfo("Success", "mitmproxy installed successfully!"))
-                else:
-                    self.root.after(0, lambda: messagebox.showerror("Error", f"Installation failed:\n{result.stderr}"))
             except Exception as e:
                 self.root.after(0, lambda: messagebox.showerror("Error", f"Installation failed: {e}"))
 
@@ -1735,24 +1337,13 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         threading.Thread(target=install_thread, daemon=True).start()
 
     def setup_certificate(self):
+        """Generate and open certificate using capture module."""
         try:
-            process = subprocess.Popen(["mitmdump"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            import time
-            time.sleep(3)
-            process.terminate()
-            try:
-                process.wait(timeout=5)
-            except:
-                process.kill()
-
-            cert_path = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.cer"
-            if cert_path.exists():
-                messagebox.showinfo("Certificate Generated",
-                    f"Certificate generated at:\n{cert_path}\n\nOpening certificate installer...")
-                os.startfile(str(cert_path))
-                self.check_setup_status()
-            else:
-                messagebox.showerror("Error", "Certificate was not generated.")
+            cert_path = setup_certificate()
+            messagebox.showinfo("Certificate Generated",
+                f"Certificate generated at:\n{cert_path}\n\nOpening certificate installer...")
+            open_certificate(cert_path)
+            self.check_setup_status()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to generate certificate: {e}")
 
@@ -1761,293 +1352,78 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         self.capture_log.see(tk.END)
 
     def check_capture_prerequisites(self):
+        """Check capture prerequisites using capture module."""
         self.capture_log_msg("Checking prerequisites...")
-        
-        is_admin = False
-        try:
-            is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-        except:
-            pass
-        
-        if is_admin:
+
+        status = check_prerequisites()
+
+        if status.is_admin:
             self.capture_log_msg("[OK] Running as Administrator", "success")
         else:
             self.capture_log_msg("[!] Not running as Administrator", "warning")
 
-        try:
-            result = subprocess.run(["mitmdump", "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                version = result.stdout.split()[1] if result.stdout else "unknown"
-                self.capture_log_msg(f"[OK] mitmproxy version {version}", "success")
-            else:
-                raise FileNotFoundError()
-        except FileNotFoundError:
+        if status.has_mitmproxy:
+            self.capture_log_msg(f"[OK] mitmproxy version {status.mitmproxy_version}", "success")
+        else:
             self.capture_log_msg("[X] mitmproxy not found!", "error")
             self.capture_log_msg("  See Setup tab", "info")
             self.capture_start_btn.config(state=tk.DISABLED)
             return
 
-        cert_path = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.cer"
-        if cert_path.exists():
+        if status.has_certificate:
             self.capture_log_msg("[OK] Certificate found", "success")
         else:
             self.capture_log_msg("[!] Certificate not found - see Setup tab", "warning")
 
         self.capture_log_msg("Resolving game servers...")
-        self.resolve_game_servers()
-        
-        if self.game_server_ips:
-            for host, ip in self.game_server_ips.items():
+        self.capture_manager.resolve_game_server()
+
+        if self.capture_manager.game_server_ips:
+            for host, ip in self.capture_manager.game_server_ips.items():
                 self.capture_log_msg(f"  {host} -> {ip}")
             self.capture_log_msg("[OK] Ready to capture!", "success")
         else:
             self.capture_log_msg("[X] Could not resolve game servers", "error")
             self.capture_start_btn.config(state=tk.DISABLED)
 
-    def resolve_game_servers(self):
-        self.game_server_ips = {}
-        for host in GAME_HOSTS:
-            try:
-                ip = socket.gethostbyname(host)
-                self.game_server_ips[host] = ip
-            except socket.gaierror:
-                pass
-
-    def modify_hosts_file(self):
-        with open(HOSTS_PATH, "r") as f:
-            content = f.read()
-        
-        if "# CZN-CAPTURE-START" in content:
-            return content
-        
-        entries = ["\n# CZN-CAPTURE-START"]
-        for host in GAME_HOSTS:
-            entries.append(f"127.0.0.1 {host}")
-        entries.append("# CZN-CAPTURE-END\n")
-        
-        new_content = content + "\n".join(entries)
-        
-        with open(HOSTS_PATH, "w") as f:
-            f.write(new_content)
-        
-        subprocess.run(["ipconfig", "/flushdns"], capture_output=True)
-        return content
-
-    def restore_hosts_file(self):
-        try:
-            with open(HOSTS_PATH, "r") as f:
-                content = f.read()
-            
-            pattern = r'\n*# CZN-CAPTURE-START.*?# CZN-CAPTURE-END\n*'
-            content = re.sub(pattern, '', content, flags=re.DOTALL)
-            
-            with open(HOSTS_PATH, "w") as f:
-                f.write(content)
-            
-            subprocess.run(["ipconfig", "/flushdns"], capture_output=True)
-        except Exception as e:
-            print(f"Failed to restore hosts: {e}")
-
     def start_capture(self):
+        """Start capture using CaptureManager."""
         try:
-            is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-            if not is_admin:
-                messagebox.showerror("Error", "Administrator privileges required.\n\nPlease restart as Administrator.")
-                return
-        except:
-            pass
-        
-        self.capture_log_msg("="*50)
-        self.capture_log_msg("Starting capture...")
-        
-        if not self.game_server_ips:
-            self.resolve_game_servers()
-        
-        if not self.game_server_ips:
-            messagebox.showerror("Error", "Could not resolve game servers.")
-            return
-
-        OUTPUT_DIR.mkdir(exist_ok=True)
-
-        self.capture_log_msg("Modifying hosts file...")
-        try:
-            self.modify_hosts_file()
-            self.capture_log_msg("[OK] Hosts file modified", "success")
-        except PermissionError:
-            self.capture_log_msg("[X] Cannot modify hosts file - run as Administrator!", "error")
-            return
-
-        real_ip = list(self.game_server_ips.values())[0]
-        addon_script = OUTPUT_DIR / "_capture_addon.py"
-        
-        addon_code = f'''
-import json
-from datetime import datetime
-from pathlib import Path
-
-OUTPUT_DIR = Path(r"{OUTPUT_DIR.absolute()}")
-
-class Addon:
-    def __init__(self):
-        self.inventory_data = None
-        self.character_data = None
-        self.saved_path = None
-    
-    def websocket_message(self, flow):
-        msg = flow.websocket.messages[-1]
-        if msg.from_client:
-            return
-        try:
-            data = json.loads(msg.text)
-            if data.get("res") != "ok":
-                return
-            
-            keys = list(data.keys())
-            print(f">>> API response keys: {{keys}}")
-            
-            if "piece_items" in data:
-                self.inventory_data = data
-                print(f">>> Captured inventory: {{len(data.get('piece_items', []))}} pieces")
-                self._save_data()
-            
-            has_characters = "characters" in data and isinstance(data.get("characters"), list)
-            has_user = "user" in data
-            
-            if has_characters or has_user:
-                self.character_data = data
-                char_count = len(data.get("characters", []))
-                print(f">>> Captured character data: {{char_count}} chars")
-                self._save_data()
-                
-        except Exception as e:
-            print(f"Error: {{e}}")
-    
-    def _save_data(self):
-        if not self.inventory_data:
-            return
-            
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        if not self.saved_path:
-            self.saved_path = OUTPUT_DIR / f"memory_fragments_{{ts}}.json"
-        
-        save_data = {{
-            "capture_time": datetime.now().isoformat(),
-            "inventory": self.inventory_data,
-            "characters": self.character_data,
-        }}
-        
-        with open(self.saved_path, "w") as f:
-            json.dump(save_data, f, indent=2)
-        
-        count = len(self.inventory_data.get("piece_items", []))
-        has_chars = "Yes" if self.character_data else "No"
-        print(f">>> SAVED {{count}} Memory Fragments (char data: {{has_chars}}) to {{self.saved_path.name}}")
-
-addons = [Addon()]
-'''
-        with open(addon_script, "w") as f:
-            f.write(addon_code)
-
-        self.capture_log_msg(f"Starting proxy on port {PROXY_PORT}...")
-        
-        cmd = [
-            "mitmdump",
-            "--mode", f"reverse:https://{real_ip}:{GAME_PORT}/",
-            "--listen-port", str(PROXY_PORT),
-            "--ssl-insecure",
-            "--set", "upstream_cert=false",
-            "--set", "keep_host_header=true",
-            "--set", "connection_strategy=lazy",
-            "-s", str(addon_script),
-            "-q",
-        ]
-        
-        try:
-            self.proxy_process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                                   text=True, bufsize=1)
-            threading.Thread(target=self._read_proxy_output, daemon=True).start()
-        except Exception as e:
-            self.capture_log_msg(f"[X] Failed to start proxy: {e}", "error")
-            self.restore_hosts_file()
-            return
-        
-        self.capturing = True
-        self.capture_status_label.config(text="Capturing...")
-        self.capture_info_label.config(text="Launch the game and load into the main menu, then stop the capture")
-        self.capture_start_btn.config(state=tk.DISABLED)
-        self.capture_stop_btn.config(state=tk.NORMAL)
-        
-        self.capture_log_msg("="*50)
-        self.capture_log_msg("[OK] Capture started!", "success")
-        self.capture_log_msg("Now launch the game and load into the main menu.")
-
-    def _read_proxy_output(self):
-        if not self.proxy_process:
-            return
-        try:
-            for line in self.proxy_process.stdout:
-                line = line.strip()
-                if line:
-                    self.root.after(0, lambda l=line: self.capture_log_msg(f"[proxy] {l}"))
-                    if "SAVED" in line and "Memory Fragments" in line:
-                        self.root.after(0, lambda: self.capture_status_label.config(text="[OK] Data Captured!"))
-        except:
-            pass
+            self.capture_manager.start_capture()
+            self.capture_start_btn.config(state=tk.DISABLED)
+            self.capture_stop_btn.config(state=tk.NORMAL)
+            self.capture_info_label.config(text="Launch the game and load into the main menu, then stop the capture")
+        except CaptureError as e:
+            messagebox.showerror("Capture Error", str(e))
 
     def stop_capture(self):
-        if not self.capturing:
-            return
-        
-        self.capture_log_msg("Stopping capture...")
-        
-        if self.proxy_process:
-            self.proxy_process.terminate()
-            try:
-                self.proxy_process.wait(timeout=5)
-            except:
-                self.proxy_process.kill()
-            self.proxy_process = None
-            self.capture_log_msg("[OK] Proxy stopped", "success")
-        
-        self.restore_hosts_file()
-        self.capture_log_msg("[OK] Hosts file restored", "success")
-        
-        self.capturing = False
-        self.capture_status_label.config(text="[O] Stopped")
-        self.capture_info_label.config(text="Check captures folder for your data")
+        """Stop capture using CaptureManager."""
+        captured_file = self.capture_manager.stop_capture()
+
         self.capture_start_btn.config(state=tk.NORMAL)
         self.capture_stop_btn.config(state=tk.DISABLED)
-        
-        files = list(OUTPUT_DIR.glob("memory_fragments_*.json"))
-        if files:
-            latest = max(files, key=lambda f: f.stat().st_mtime)
-            self.capture_log_msg(f"[OK] Latest capture: {latest.name}", "success")
-            
-            if messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
-                self.load_data(str(latest))
-                self.notebook.select(self.optimizer_tab)
-        
-        self.capture_log_msg("="*50)
+        self.capture_info_label.config(text="Check snapshots folder for your data")
 
-    def open_captures_folder(self):
-        OUTPUT_DIR.mkdir(exist_ok=True)
-        if sys.platform == "win32":
-            os.startfile(OUTPUT_DIR)
-        else:
-            subprocess.run(["xdg-open", str(OUTPUT_DIR)])
+        if captured_file and messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
+            self.load_data(str(captured_file))
+            self.notebook.select(self.optimizer_tab)
+
+    def open_snapshots_folder(self):
+        """Open snapshots folder using CaptureManager."""
+        self.capture_manager.open_snapshots_folder()
 
     def load_latest_capture(self):
-        files = list(OUTPUT_DIR.glob("memory_fragments_*.json"))
-        if files:
-            latest = str(max(files, key=lambda f: f.stat().st_mtime))
-            self.load_data(latest)
+        """Load most recent capture file using CaptureManager."""
+        latest = self.capture_manager.get_latest_capture()
+        if latest:
+            self.load_data(str(latest))
             self.notebook.select(self.optimizer_tab)
         else:
             messagebox.showinfo("No Captures", "No capture files found.")
 
     def on_close(self):
-        if self.capturing:
+        """Handle window close event."""
+        if self.capture_manager.is_capturing():
             if messagebox.askyesno("Confirm Exit", "Capture is still running. Stop and exit?"):
                 self.stop_capture()
             else:
@@ -2055,10 +1431,10 @@ addons = [Addon()]
         self.root.destroy()
 
     def auto_load(self):
-        for dir_path in ["captures", ".", str(Path.home() / "captures")]:
-            captures = Path(dir_path)
-            if captures.exists():
-                files = list(captures.glob("memory_fragments_*.json"))
+        for dir_path in ["snapshots", ".", str(Path.home() / "snapshots")]:
+            snapshots = Path(dir_path)
+            if snapshots.exists():
+                files = list(snapshots.glob("memory_fragments_*.json"))
                 if files:
                     latest = str(max(files, key=lambda f: f.stat().st_mtime))
                     self.load_data(latest)
@@ -2066,9 +1442,9 @@ addons = [Addon()]
 
     def load_file(self):
         filepath = filedialog.askopenfilename(
-            title="Select Memory Fragment Capture",
+            title="Select Memory Fragment Snapshot",
             filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
-            initialdir="captures"
+            initialdir="snapshots"
         )
         if filepath:
             self.load_data(filepath)

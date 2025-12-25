@@ -32,12 +32,8 @@ FRIENDSHIP_BONUSES = [
     (36, 36, 12, 31), (37, 36, 12, 34), (38, 39, 12, 34), (39, 39, 13, 34), (40, 39, 13, 37),
 ]
 
-# Capture configuration
-GAME_HOSTS = ["live-g-czn-gamemjc2n1x.game.playstove.com"]
-GAME_PORT = 13701
-PROXY_PORT = 13701
-OUTPUT_DIR = Path("captures")
-HOSTS_PATH = Path(r"C:\Windows\System32\drivers\etc\hosts")
+# Note: Capture-related constants (GAME_HOSTS, GAME_PORT, PROXY_PORT, OUTPUT_DIR, HOSTS_PATH)
+# have been moved to the capture module (capture/constants.py)
 
 EQUIPMENT_SLOTS = {
     1: "I Shock",
