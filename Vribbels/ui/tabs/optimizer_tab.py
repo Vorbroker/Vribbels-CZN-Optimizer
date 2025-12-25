@@ -43,7 +43,43 @@ class OptimizerTab(BaseTab):
 
     def _init_state(self):
         """Initialize all state variables and widget references."""
-        pass  # Will implement in next task
+        # Character selection
+        self.selected_character = tk.StringVar()
+
+        # Priority sliders (11 stats: ATK%, Flat ATK, DEF%, etc.)
+        self.priority_vars: dict[str, tk.IntVar] = {}
+        self.priority_labels: dict[str, ttk.Label] = {}
+
+        # Main stat filters for slots 4, 5, 6
+        self.main_stat_vars: dict[int, dict[str, tk.BooleanVar]] = {}
+
+        # Set filters (multi-select checkboxes)
+        self.four_piece_vars: dict[str, tk.BooleanVar] = {}
+        self.two_piece_vars: dict[str, tk.BooleanVar] = {}
+
+        # Optimization options
+        self.top_percent_var = tk.IntVar(value=50)
+        self.include_equipped_var = tk.BooleanVar(value=True)
+        self.exclude_hero_vars: dict[str, tk.BooleanVar] = {}
+
+        # Results and threading state
+        self.optimization_results: list = []
+        self.result_queue = queue.Queue()
+        self.cancel_flag = [False]  # Mutable list for thread safety
+
+        # Sorting state
+        self.result_sort_col = "score"
+        self.result_sort_reverse = False
+
+        # Widget references (set during setup_ui)
+        self.hero_combo = None
+        self.status_label = None
+        self.stats_tree = None
+        self.result_tree = None
+        self.detail_tree = None
+        self.progress_label = None
+        self.top_pct_label = None
+        self.exclude_heroes_frame = None
 
     def setup_ui(self):
         """Build the optimization tab UI."""
