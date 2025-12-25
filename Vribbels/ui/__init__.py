@@ -6,7 +6,7 @@ Provides modular tab architecture and shared UI components.
 
 from .base_tab import BaseTab
 from .context import AppContext
-from .tabs import MaterialsTab, SetupTab, CaptureTab
+from .tabs import MaterialsTab, SetupTab, CaptureTab, InventoryTab
 
 __all__ = [
     'BaseTab',
@@ -14,6 +14,7 @@ __all__ = [
     'MaterialsTab',
     'SetupTab',
     'CaptureTab',
+    'InventoryTab',
 ]
 
 __version__ = '1.0.0'
