@@ -78,21 +78,6 @@ class OptimizerGUI:
         self.configure_styles()
 
         self.optimizer = GearOptimizer()
-        self.selected_character = tk.StringVar()
-        self.priority_vars: dict[str, tk.IntVar] = {}
-        self.priority_labels: dict[str, ttk.Label] = {}
-        self.main_stat_vars: dict[int, dict[str, tk.BooleanVar]] = {}
-        self.four_piece_vars: dict[str, tk.BooleanVar] = {}  # Multi-select for 4-piece
-        self.two_piece_vars: dict[str, tk.BooleanVar] = {}  # Changed to dict of checkboxes
-        self.top_percent_var = tk.IntVar(value=50)
-        self.include_equipped_var = tk.BooleanVar(value=True)
-        
-        self.optimization_results: list = []
-        self.result_queue = queue.Queue()
-        self.cancel_flag = [False]
-        self.exclude_hero_vars: dict[str, tk.BooleanVar] = {}
-        self.result_sort_col = "score"
-        self.result_sort_reverse = False
         self.hero_sort_col = "name"
         self.hero_sort_reverse = False
 
