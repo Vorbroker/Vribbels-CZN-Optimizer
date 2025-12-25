@@ -132,6 +132,48 @@ class OptimizerTab(BaseTab):
         middle_frame = ttk.Frame(main_pane)
         main_pane.add(middle_frame, weight=1)
 
+        # Priority sliders configuration
+        priority_frame = ttk.LabelFrame(middle_frame, text="Stat Priority (-1 to 3)", padding=5)
+        priority_frame.pack(fill=tk.X, pady=(0, 5))
+
+        priority_stats = ["ATK%", "Flat ATK", "DEF%", "Flat DEF", "HP%", "Flat HP",
+                          "CRate", "CDmg", "Ego", "Extra DMG%", "DoT%"]
+
+        for i, stat_name in enumerate(priority_stats):
+            row = i // 2
+            col = i % 2
+            frame = ttk.Frame(priority_frame)
+            frame.grid(row=row, column=col, sticky=tk.W, padx=3, pady=1)
+
+            ttk.Label(frame, text=f"{stat_name}:", width=10,
+                      font=("Segoe UI", 9)).pack(side=tk.LEFT)
+            var = tk.IntVar(value=0)
+            self.priority_vars[stat_name] = var
+
+            scale = ttk.Scale(frame, from_=-1, to=3, variable=var,
+                              orient=tk.HORIZONTAL, length=70,
+                              command=lambda v, s=stat_name: self.on_priority_change(s))
+            scale.pack(side=tk.LEFT, padx=2)
+
+            label = ttk.Label(frame, text="0", width=2, font=("Segoe UI", 9, "bold"))
+            label.pack(side=tk.LEFT)
+            self.priority_labels[stat_name] = label
+
+        # Top % filter
+        top_frame = ttk.Frame(priority_frame)
+        top_frame.grid(row=(len(priority_stats) + 1) // 2, column=0,
+                       columnspan=2, pady=(8, 0), sticky=tk.W)
+        ttk.Label(top_frame, text="Top % Filter:",
+                  font=("Segoe UI", 9)).pack(side=tk.LEFT)
+        ttk.Scale(top_frame, from_=10, to=100, variable=self.top_percent_var,
+                  orient=tk.HORIZONTAL, length=90).pack(side=tk.LEFT, padx=5)
+        self.top_pct_label = ttk.Label(top_frame, text="50%",
+                                        font=("Segoe UI", 9, "bold"))
+        self.top_pct_label.pack(side=tk.LEFT)
+        self.top_percent_var.trace_add("write",
+                                        lambda *a: self.top_pct_label.config(
+                                            text=f"{self.top_percent_var.get()}%"))
+
         # Right pane: Results (will be populated in later task)
         right_frame = ttk.LabelFrame(main_pane, text="Results", padding=5)
         main_pane.add(right_frame, weight=2)
