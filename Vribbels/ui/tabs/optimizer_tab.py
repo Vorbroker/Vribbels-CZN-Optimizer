@@ -252,6 +252,68 @@ class OptimizerTab(BaseTab):
         right_frame = ttk.LabelFrame(main_pane, text="Results", padding=5)
         main_pane.add(right_frame, weight=2)
 
+        # Progress label
+        self.progress_label = ttk.Label(right_frame, text="Ready to optimize",
+                                        foreground=self.colors["fg_dim"])
+        self.progress_label.pack(anchor=tk.W)
+
+        # Results tree with sortable columns
+        result_cols = ("rank", "score", "sets", "atk", "hp", "def", "crate", "cdmg", "extra")
+        self.result_tree = ttk.Treeview(right_frame, columns=result_cols,
+                                        show="headings", height=12)
+        self.result_tree.heading("rank", text="#",
+                                 command=lambda: self.sort_results("rank"))
+        self.result_tree.heading("score", text="Score",
+                                 command=lambda: self.sort_results("score"))
+        self.result_tree.heading("sets", text="Sets",
+                                 command=lambda: self.sort_results("sets"))
+        self.result_tree.heading("atk", text="ATK",
+                                 command=lambda: self.sort_results("atk"))
+        self.result_tree.heading("hp", text="HP",
+                                 command=lambda: self.sort_results("hp"))
+        self.result_tree.heading("def", text="DEF",
+                                 command=lambda: self.sort_results("def"))
+        self.result_tree.heading("crate", text="CRate",
+                                 command=lambda: self.sort_results("crate"))
+        self.result_tree.heading("cdmg", text="CDmg",
+                                 command=lambda: self.sort_results("cdmg"))
+        self.result_tree.heading("extra", text="ExDMG",
+                                 command=lambda: self.sort_results("extra"))
+
+        self.result_tree.column("rank", width=28, anchor=tk.CENTER)
+        self.result_tree.column("score", width=45, anchor=tk.CENTER)
+        self.result_tree.column("sets", width=160)
+        self.result_tree.column("atk", width=50, anchor=tk.CENTER)
+        self.result_tree.column("hp", width=50, anchor=tk.CENTER)
+        self.result_tree.column("def", width=50, anchor=tk.CENTER)
+        self.result_tree.column("crate", width=50, anchor=tk.CENTER)
+        self.result_tree.column("cdmg", width=55, anchor=tk.CENTER)
+        self.result_tree.column("extra", width=50, anchor=tk.CENTER)
+
+        result_scroll = ttk.Scrollbar(right_frame, orient=tk.VERTICAL,
+                                      command=self.result_tree.yview)
+        self.result_tree.configure(yscrollcommand=result_scroll.set)
+        self.result_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        result_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.result_tree.bind("<<TreeviewSelect>>", self.on_result_select)
+
+        # Selected build detail tree
+        detail_frame = ttk.LabelFrame(self.frame, text="Selected Build", padding=5)
+        detail_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+
+        detail_cols = ("slot", "set", "main", "sub1", "sub2", "sub3", "sub4",
+                       "gs", "potential", "owner")
+        self.detail_tree = ttk.Treeview(detail_frame, columns=detail_cols,
+                                        show="headings", height=6)
+        for col, txt, w in [("slot","Slot",110), ("set","Set",130), ("main","Main",100),
+                            ("sub1","Sub1",95), ("sub2","Sub2",95), ("sub3","Sub3",95),
+                            ("sub4","Sub4",95), ("gs","GS",40), ("potential","Potential",75),
+                            ("owner","Owner",80)]:
+            self.detail_tree.heading(col, text=txt)
+            anchor = tk.W if col in ["slot","set","main","owner"] else tk.CENTER
+            self.detail_tree.column(col, width=w, anchor=anchor)
+        self.detail_tree.pack(fill=tk.X)
+
     # === Public API (called by main GUI) ===
 
     def refresh_after_load(self):
