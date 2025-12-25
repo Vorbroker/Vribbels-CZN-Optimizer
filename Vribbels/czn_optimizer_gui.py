@@ -30,6 +30,7 @@ from game_data import *
 from models import *
 from capture import *
 from optimizer import GearOptimizer
+from ui import AppContext, MaterialsTab, SetupTab, CaptureTab
 
 
 class MultiSelectListbox(tk.Frame):
@@ -105,8 +106,20 @@ class OptimizerGUI:
         # Initialize capture manager
         self.capture_manager = CaptureManager(
             output_folder=OUTPUT_DIR,
-            log_callback=self.capture_log_msg,
-            status_callback=lambda status: self.capture_status_label.config(text=status) if hasattr(self, 'capture_status_label') else None
+            log_callback=lambda msg, tag=None: self.capture_tab_instance.capture_log_msg(msg, tag) if hasattr(self, 'capture_tab_instance') else None,
+            status_callback=lambda status: self.capture_tab_instance.capture_status_label.config(text=status) if hasattr(self, 'capture_tab_instance') else None
+        )
+
+        # Create AppContext for UI tabs
+        self.app_context = AppContext(
+            root=self.root,
+            notebook=None,  # Set after notebook created in setup_ui
+            optimizer=self.optimizer,
+            capture_manager=self.capture_manager,
+            colors=self.colors,
+            style=self.style,
+            load_data_callback=self.load_data,
+            switch_tab_callback=self._switch_to_tab
         )
 
         self.setup_ui()
@@ -155,6 +168,9 @@ class OptimizerGUI:
         self.notebook = ttk.Notebook(self.root)
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
+        # Update AppContext with notebook reference
+        self.app_context.notebook = self.notebook
+
         self.optimizer_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.optimizer_tab, text="Optimizer")
         self.setup_optimizer_tab()
@@ -163,21 +179,24 @@ class OptimizerGUI:
         self.notebook.add(self.inventory_tab, text="Memory Fragments")
         self.setup_inventory_tab()
 
-        self.materials_tab = ttk.Frame(self.notebook)
+        # Materials tab - using UI module
+        self.materials_tab_instance = MaterialsTab(self.notebook, self.app_context)
+        self.materials_tab = self.materials_tab_instance.get_frame()
         self.notebook.add(self.materials_tab, text="Materials")
-        self.setup_materials_tab()
 
         self.heroes_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.heroes_tab, text="Combatants")
         self.setup_heroes_tab()
 
-        self.capture_tab = ttk.Frame(self.notebook)
+        # Capture tab - using UI module
+        self.capture_tab_instance = CaptureTab(self.notebook, self.app_context)
+        self.capture_tab = self.capture_tab_instance.get_frame()
         self.notebook.add(self.capture_tab, text="Capture")
-        self.setup_capture_tab()
         
-        self.setup_tab = ttk.Frame(self.notebook)
+        # Setup tab - using UI module
+        self.setup_tab_instance = SetupTab(self.notebook, self.app_context)
+        self.setup_tab = self.setup_tab_instance.get_frame()
         self.notebook.add(self.setup_tab, text="Setup")
-        self.setup_setup_tab()
         
         self.scoring_tab = ttk.Frame(self.notebook)
         self.notebook.add(self.scoring_tab, text="Scoring")
@@ -449,52 +468,6 @@ class OptimizerGUI:
         self.inv_tree.configure(yscrollcommand=inv_scroll.set)
         self.inv_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         inv_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
-    def setup_materials_tab(self):
-        """Setup the Materials tab to display growth stones and other items."""
-        container = ttk.Frame(self.materials_tab)
-        container.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
-
-        # Title
-        title_label = ttk.Label(container, text="Growth Stones", font=("Segoe UI", 14, "bold"))
-        title_label.pack(anchor=tk.W, pady=(0, 15))
-
-        # Growth stones frame
-        stones_frame = ttk.Frame(container)
-        stones_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Store icon references to prevent garbage collection
-        self.material_icons = {}
-
-        # Organize by attribute
-        attributes = ["Passion", "Instinct", "Void", "Order", "Justice"]
-        qualities = ["Premium", "Great", "Common"]
-
-        for row, attribute in enumerate(attributes):
-            # Attribute label
-            attr_label = ttk.Label(stones_frame, text=attribute, font=("Segoe UI", 12, "bold"),
-                                   foreground=ATTRIBUTE_COLORS.get(attribute, "#FFFFFF"))
-            attr_label.grid(row=row, column=0, sticky=tk.W, padx=(0, 20), pady=10)
-
-            # Create icon for each quality level
-            for col, quality in enumerate(qualities, start=1):
-                # Find the res_id for this attribute/quality combo
-                res_id = None
-                for rid, (attr, qual, icon_file) in GROWTH_STONES.items():
-                    if attr == attribute and qual == quality:
-                        res_id = rid
-                        break
-
-                if res_id:
-                    # Placeholder for icon with quantity - will be updated when data loads
-                    placeholder_label = tk.Label(stones_frame, text=f"{quality}\n0",
-                                                bg=self.colors["bg"],
-                                                fg=self.colors["fg"],
-                                                font=("Segoe UI", 11))
-                    placeholder_label.grid(row=row, column=col, padx=5, pady=5)
-
-                    # Store reference with res_id
-                    self.material_icons[res_id] = placeholder_label
 
     def setup_heroes_tab(self):
         user_frame = ttk.Frame(self.heroes_tab)
@@ -1003,155 +976,6 @@ class OptimizerGUI:
         else:
             self.hero_stats_label.config(text="No gear equipped")
 
-    def setup_capture_tab(self):
-        main_frame = ttk.Frame(self.capture_tab)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        title_frame = ttk.Frame(main_frame)
-        title_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Label(title_frame, text="Data Capture", font=("Segoe UI", 14, "bold")).pack(anchor=tk.W)
-        ttk.Label(title_frame, text="Capture game data by intercepting API traffic", 
-                  foreground=self.colors["fg_dim"]).pack(anchor=tk.W)
-
-        status_frame = ttk.LabelFrame(main_frame, text="Status", padding=10)
-        status_frame.pack(fill=tk.X, pady=(0, 10))
-
-        self.capture_status_label = ttk.Label(status_frame, text="Ready", font=("Segoe UI", 12))
-        self.capture_status_label.pack(anchor=tk.W)
-        
-        self.capture_info_label = ttk.Label(status_frame, text="Click 'Start Capture' to begin",
-                                            foreground=self.colors["fg_dim"])
-        self.capture_info_label.pack(anchor=tk.W)
-
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=tk.X, pady=(0, 10))
-
-        self.capture_start_btn = ttk.Button(btn_frame, text="Start Capture", command=self.start_capture, width=18)
-        self.capture_start_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        self.capture_stop_btn = ttk.Button(btn_frame, text="Stop Capture", command=self.stop_capture, 
-                                           width=18, state=tk.DISABLED)
-        self.capture_stop_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        ttk.Button(btn_frame, text="Open Snapshots", command=self.open_snapshots_folder, width=15).pack(side=tk.LEFT, padx=(0, 10))
-        ttk.Button(btn_frame, text="Load Latest", command=self.load_latest_capture, width=12).pack(side=tk.LEFT)
-
-        req_frame = ttk.LabelFrame(main_frame, text="Requirements", padding=10)
-        req_frame.pack(fill=tk.X, pady=(0, 10))
-
-        requirements_text = """- Run as Administrator (required for hosts file modification)
-- Certificate installed (see Setup tab)
-- Game must be closed before starting capture
-- After starting capture, launch game and load into the main menu, then stop the capture"""
-        
-        ttk.Label(req_frame, text=requirements_text, justify=tk.LEFT).pack(anchor=tk.W)
-
-        log_frame = ttk.LabelFrame(main_frame, text="Capture Log", padding=5)
-        log_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.capture_log = scrolledtext.ScrolledText(log_frame, height=15, wrap=tk.WORD,
-                                                     bg=self.colors["bg_light"], fg=self.colors["fg"],
-                                                     insertbackground=self.colors["fg"])
-        self.capture_log.pack(fill=tk.BOTH, expand=True)
-        
-        self.capture_log.tag_configure("success", foreground=self.colors["green"])
-        self.capture_log.tag_configure("error", foreground=self.colors["red"])
-        self.capture_log.tag_configure("warning", foreground=self.colors["yellow"])
-        self.capture_log.tag_configure("info", foreground=self.colors["accent"])
-
-        self.root.after(500, self.check_capture_prerequisites)
-
-    def setup_setup_tab(self):
-        main_frame = ttk.Frame(self.setup_tab)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-
-        ttk.Label(main_frame, text="First-Time Setup", font=("Segoe UI", 14, "bold")).pack(anchor=tk.W)
-        ttk.Label(main_frame, text="Complete these steps before using the capture feature", 
-                  foreground=self.colors["fg_dim"]).pack(anchor=tk.W, pady=(0, 10))
-
-        status_frame = ttk.LabelFrame(main_frame, text="Setup Status", padding=10)
-        status_frame.pack(fill=tk.X, pady=(0, 10))
-
-        self.setup_python_status = ttk.Label(status_frame, text="Checking Python...", font=("Segoe UI", 10))
-        self.setup_python_status.pack(anchor=tk.W, pady=2)
-
-        self.setup_mitmproxy_status = ttk.Label(status_frame, text="Checking mitmproxy...", font=("Segoe UI", 10))
-        self.setup_mitmproxy_status.pack(anchor=tk.W, pady=2)
-
-        self.setup_cert_status = ttk.Label(status_frame, text="Checking certificate...", font=("Segoe UI", 10))
-        self.setup_cert_status.pack(anchor=tk.W, pady=2)
-
-        self.setup_admin_status = ttk.Label(status_frame, text="Checking admin rights...", font=("Segoe UI", 10))
-        self.setup_admin_status.pack(anchor=tk.W, pady=2)
-
-        btn_frame = ttk.Frame(main_frame)
-        btn_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Button(btn_frame, text="Check Status", command=self.check_setup_status, width=15).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Generate & Install Cert", command=self.setup_certificate, width=22).pack(side=tk.LEFT, padx=5)
-
-        instr_frame = ttk.LabelFrame(main_frame, text="Setup Instructions", padding=10)
-        instr_frame.pack(fill=tk.BOTH, expand=True)
-
-        instructions = """STEP 1: Generate and install certificate
-  - Click "Generate & Install Cert" button
-  - When the certificate dialog opens:
-    1. Click "Install Certificate"
-    2. Select "Local Machine"
-    3. Click Next
-    4. Select "Place all certificates in the following store"
-    5. Click Browse and select "Trusted Root Certification Authorities"
-    6. Click OK, Next, then Finish
-
-STEP 2: Verify setup
-  - Click "Check Status" to verify all components are ready
-  - All items should show green checkmarks [OK]"""
-
-        instr_text = scrolledtext.ScrolledText(instr_frame, height=18, wrap=tk.WORD,
-                                               bg=self.colors["bg_light"], fg=self.colors["fg"])
-        instr_text.insert("1.0", instructions)
-        instr_text.config(state=tk.DISABLED)
-        instr_text.pack(fill=tk.BOTH, expand=True)
-
-        self.root.after(1000, self.check_setup_status)
-
-    def check_setup_status(self):
-        try:
-            result = subprocess.run(["python", "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                version = result.stdout.strip() or result.stderr.strip()
-                self.setup_python_status.config(text=f"[OK] {version}", foreground=self.colors["green"])
-            else:
-                raise FileNotFoundError()
-        except:
-            self.setup_python_status.config(text="[X] Python not found", foreground=self.colors["red"])
-
-        try:
-            result = subprocess.run(["mitmdump", "--version"], capture_output=True, text=True)
-            if result.returncode == 0:
-                version = result.stdout.split()[1] if result.stdout else "installed"
-                self.setup_mitmproxy_status.config(text=f"[OK] mitmproxy {version}", foreground=self.colors["green"])
-            else:
-                raise FileNotFoundError()
-        except:
-            self.setup_mitmproxy_status.config(text="[X] mitmproxy not installed", foreground=self.colors["red"])
-
-        cert_path = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.cer"
-        if cert_path.exists():
-            self.setup_cert_status.config(text=f"[OK] Certificate exists", foreground=self.colors["green"])
-        else:
-            self.setup_cert_status.config(text="[X] Certificate not generated", foreground=self.colors["red"])
-
-        try:
-            is_admin = ctypes.windll.shell32.IsUserAnAdmin()
-            if is_admin:
-                self.setup_admin_status.config(text="[OK] Running as Administrator", foreground=self.colors["green"])
-            else:
-                self.setup_admin_status.config(text="[!] Not running as Administrator", foreground=self.colors["yellow"])
-        except:
-            self.setup_admin_status.config(text="? Could not check admin status", foreground=self.colors["yellow"])
-
     def setup_scoring_tab(self):
         """Setup the Scoring configuration tab"""
         main_frame = ttk.Frame(self.scoring_tab)
@@ -1327,7 +1151,7 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         def install_thread():
             try:
                 success = install_mitmproxy()
-                self.root.after(0, lambda: self.check_setup_status())
+                self.root.after(0, lambda: self.setup_tab_instance.check_status())
                 if success:
                     self.root.after(0, lambda: messagebox.showinfo("Success", "mitmproxy installed successfully!"))
             except Exception as e:
@@ -1336,96 +1160,11 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         messagebox.showinfo("Installing", "Installing mitmproxy... This may take a minute.")
         threading.Thread(target=install_thread, daemon=True).start()
 
-    def setup_certificate(self):
-        """Generate and open certificate using capture module."""
-        try:
-            cert_path = setup_certificate()
-            messagebox.showinfo("Certificate Generated",
-                f"Certificate generated at:\n{cert_path}\n\nOpening certificate installer...")
-            open_certificate(cert_path)
-            self.check_setup_status()
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to generate certificate: {e}")
-
-    def capture_log_msg(self, msg: str, tag: str = None):
-        self.capture_log.insert(tk.END, f"{msg}\n", tag)
-        self.capture_log.see(tk.END)
-
-    def check_capture_prerequisites(self):
-        """Check capture prerequisites using capture module."""
-        self.capture_log_msg("Checking prerequisites...")
-
-        status = check_prerequisites()
-
-        if status.is_admin:
-            self.capture_log_msg("[OK] Running as Administrator", "success")
-        else:
-            self.capture_log_msg("[!] Not running as Administrator", "warning")
-
-        if status.has_mitmproxy:
-            self.capture_log_msg(f"[OK] mitmproxy version {status.mitmproxy_version}", "success")
-        else:
-            self.capture_log_msg("[X] mitmproxy not found!", "error")
-            self.capture_log_msg("  See Setup tab", "info")
-            self.capture_start_btn.config(state=tk.DISABLED)
-            return
-
-        if status.has_certificate:
-            self.capture_log_msg("[OK] Certificate found", "success")
-        else:
-            self.capture_log_msg("[!] Certificate not found - see Setup tab", "warning")
-
-        self.capture_log_msg("Resolving game servers...")
-        self.capture_manager.resolve_game_server()
-
-        if self.capture_manager.game_server_ips:
-            for host, ip in self.capture_manager.game_server_ips.items():
-                self.capture_log_msg(f"  {host} -> {ip}")
-            self.capture_log_msg("[OK] Ready to capture!", "success")
-        else:
-            self.capture_log_msg("[X] Could not resolve game servers", "error")
-            self.capture_start_btn.config(state=tk.DISABLED)
-
-    def start_capture(self):
-        """Start capture using CaptureManager."""
-        try:
-            self.capture_manager.start_capture()
-            self.capture_start_btn.config(state=tk.DISABLED)
-            self.capture_stop_btn.config(state=tk.NORMAL)
-            self.capture_info_label.config(text="Launch the game and load into the main menu, then stop the capture")
-        except CaptureError as e:
-            messagebox.showerror("Capture Error", str(e))
-
-    def stop_capture(self):
-        """Stop capture using CaptureManager."""
-        captured_file = self.capture_manager.stop_capture()
-
-        self.capture_start_btn.config(state=tk.NORMAL)
-        self.capture_stop_btn.config(state=tk.DISABLED)
-        self.capture_info_label.config(text="Check snapshots folder for your data")
-
-        if captured_file and messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
-            self.load_data(str(captured_file))
-            self.notebook.select(self.optimizer_tab)
-
-    def open_snapshots_folder(self):
-        """Open snapshots folder using CaptureManager."""
-        self.capture_manager.open_snapshots_folder()
-
-    def load_latest_capture(self):
-        """Load most recent capture file using CaptureManager."""
-        latest = self.capture_manager.get_latest_capture()
-        if latest:
-            self.load_data(str(latest))
-            self.notebook.select(self.optimizer_tab)
-        else:
-            messagebox.showinfo("No Captures", "No capture files found.")
-
     def on_close(self):
         """Handle window close event."""
         if self.capture_manager.is_capturing():
             if messagebox.askyesno("Confirm Exit", "Capture is still running. Stop and exit?"):
-                self.stop_capture()
+                self.capture_tab_instance.stop_capture()
             else:
                 return
         self.root.destroy()
@@ -1495,7 +1234,7 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
 
             self.refresh_inventory()
             self.refresh_heroes()
-            self.refresh_materials()
+            self.materials_tab_instance.refresh_materials()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load: {e}")
             import traceback
@@ -1991,94 +1730,6 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         if self.hero_row_widgets:
             self.select_hero_row(0)
 
-    def create_icon_with_quantity(self, icon_path: str, quantity: int, size=(140, 140)) -> ImageTk.PhotoImage:
-        """Create an icon image with quantity text overlay in bottom right corner."""
-        try:
-            # Load the icon image
-            img = Image.open(icon_path)
-            img = img.resize(size, Image.Resampling.LANCZOS)
-
-            # Create drawing context
-            draw = ImageDraw.Draw(img)
-
-            # Prepare quantity text
-            qty_text = str(quantity)
-
-            # Try to use a nice font, fallback to default
-            try:
-                font = ImageFont.truetype("arial.ttf", 24)
-            except:
-                font = ImageFont.load_default()
-
-            # Get text bounding box at origin
-            bbox = draw.textbbox((0, 0), qty_text, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-
-            # Position in bottom right corner with padding
-            padding = 8
-            text_x = size[0] - text_width - padding
-            text_y = size[1] - text_height - padding - 8  # Move up 3 pixels
-
-            # Draw background rectangle for better visibility
-            # Use the actual bbox relative to text position for perfect alignment
-            actual_bbox = draw.textbbox((text_x, text_y), qty_text, font=font)
-            rect_padding = 4
-            draw.rectangle(
-                [actual_bbox[0] - rect_padding,
-                 actual_bbox[1] - rect_padding,
-                 actual_bbox[2] + rect_padding,
-                 actual_bbox[3] + rect_padding],
-                fill=(0, 0, 0, 200)
-            )
-
-            # Draw the text
-            draw.text((text_x, text_y), qty_text, fill="white", font=font)
-
-            # Convert to PhotoImage
-            return ImageTk.PhotoImage(img)
-        except Exception as e:
-            print(f"Error creating icon: {e}")
-            return None
-
-    def refresh_materials(self):
-        """Update materials tab with current inventory data."""
-        if not self.optimizer.raw_data:
-            return
-
-        # Get items from inventory
-        inventory = self.optimizer.raw_data.get("inventory", {})
-        items = inventory.get("items", [])
-
-        # Create dictionary of res_id -> amount
-        item_quantities = {}
-        for item in items:
-            res_id = item.get("res_id")
-            amount = item.get("amount", 0)
-            if res_id:
-                item_quantities[res_id] = amount
-
-        # Get the path to images folder (same directory as script)
-        script_dir = Path(__file__).parent
-        images_dir = script_dir / "images"
-
-        # Update each growth stone icon
-        for res_id, label_widget in self.material_icons.items():
-            if res_id in GROWTH_STONES:
-                attribute, quality, icon_filename = GROWTH_STONES[res_id]
-                quantity = item_quantities.get(res_id, 0)
-                icon_path = images_dir / icon_filename
-
-                if icon_path.exists():
-                    # Create icon with quantity overlay
-                    photo = self.create_icon_with_quantity(str(icon_path), quantity)
-                    if photo:
-                        label_widget.config(image=photo, text="")
-                        label_widget.image = photo  # Keep reference
-                else:
-                    # Icon file not found, show text
-                    label_widget.config(text=f"{quality}\n{quantity}", image="")
-
     def select_hero_row(self, index: int):
         """Select a hero row and update display"""
         # Deselect previous - reset ALL labels to proper colors
@@ -2111,6 +1762,10 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
             # Trigger detail update
             hero_name = new_row.hero_name
             self.show_hero_details(hero_name)
+
+    def _switch_to_tab(self, tab_frame: tk.Widget):
+        """Switch notebook to the specified tab frame."""
+        self.notebook.select(tab_frame)
 
     def run(self):
         self.root.mainloop()
