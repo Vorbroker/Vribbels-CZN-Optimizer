@@ -5,6 +5,24 @@ All notable changes to Vribbels CZN Optimizer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2025-12-26
+
+### Added
+- **Automatic Update Checking**
+  - Checks GitHub releases for new versions once per 24 hours
+  - Modal dialog at startup when update is available
+  - "About" tab with version info and manual update check
+  - Skip version capability to ignore specific releases
+  - Graceful offline behavior with cached update info
+  - Background threading for non-blocking checks
+
+### Technical Details
+- New `version.py` module as single source of truth for version
+- New `update_checker.py` module for GitHub API integration
+- New `AboutTab` following BaseTab pattern
+- Uses `packaging` library for semantic version comparison
+- Metadata persisted in `%APPDATA%/Vribbels/update_check.json`
+
 ## [1.3.1] - 2025-12-26
 
 ### Fixed
@@ -105,6 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.4.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.1.0...v1.3.0
 [1.1.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.0.0...v1.1.0
