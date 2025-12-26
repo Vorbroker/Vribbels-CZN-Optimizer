@@ -357,15 +357,15 @@ CHARACTERS_BY_NAME = {
     if char_data is not None
 }
 
-# Potential stat values per level (levels 1-10)
+# Potential stat values per level (levels 1-5)
 # These are the stat bonus percentages/values gained at each level
 # Note: Values may need adjustment based on actual game data
 POTENTIAL_STAT_VALUES = {
-    "HP%": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),      # % HP increase per level
-    "ATK%": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),     # % ATK increase per level
-    "DEF%": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),     # % DEF increase per level
-    "CRate": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),    # Crit Rate % per level
-    "CDmg": (2.4, 4.8, 7.2, 9.6, 12.0, 14.4, 16.8, 19.2, 21.6, 24.0),   # Crit Damage % per level
+    "HP%": (0.6, 1.2, 1.8, 2.4, 3.0),      # % HP increase per level
+    "ATK%": (0.6, 1.2, 1.8, 2.4, 3.0),     # % ATK increase per level
+    "DEF%": (0.6, 1.2, 1.8, 2.4, 3.0),     # % DEF increase per level
+    "CRate": (2.0, 4.0, 6.0, 8.0, 10.0),   # Crit Rate % per level
+    "CDmg": (2.4, 4.8, 7.2, 9.6, 12.0),    # Crit Damage % per level
 }
 
 ATTRIBUTE_COLORS = {
@@ -384,12 +384,12 @@ def get_potential_stat_bonus(res_id: int, node: int, level: int) -> tuple[str, f
     Args:
         res_id: Character's res_id
         node: Node number (50 or 60)
-        level: Node level (1-10)
+        level: Node level (1-5)
 
     Returns:
         Tuple of (stat_type, bonus_value) or (None, 0) if not found
     """
-    if level <= 0 or level > 10:
+    if level <= 0 or level > 5:
         return (None, 0.0)
 
     # Look up character data from CHARACTERS dictionary
