@@ -442,8 +442,241 @@ class HeroesTab(BaseTab):
                 self.gear_frames[slot_num].config(bg=self.colors["bg_dark"])
 
     def show_hero_details(self, hero_name: str):
-        """Show hero details."""
-        pass  # Implement in later task
+        """Show detailed hero information including gear"""
+        char_info = self.optimizer.character_info.get(hero_name)
+        if not char_info:
+            return
+
+        char_def = get_character_by_name(hero_name)
+        if not char_def:
+            return
+
+        # Update title with attribute color
+        attr = char_def.get("attribute", "")
+        attr_color = ATTRIBUTE_COLORS.get(attr, self.colors["fg"])
+        self.hero_detail_name.config(text=hero_name, fg=attr_color)
+
+        # Character info section
+        char_text_lines = [
+            f"Grade: {'★' * char_def.get('grade', 0)}  |  Attribute: {attr}  |  Class: {char_def.get('class', '?')}",
+            f"Level: {char_info.level}  |  Ascension: {char_info.ascension}  |  Limit Break: {char_info.limit_break}  |  Ego: {char_info.ego_level}",
+        ]
+
+        # Potential nodes
+        potential_lines = []
+        if char_info.potential_50_unlocked:
+            node_50_stat = char_def.get("node_50", "Unknown")
+            bonus_50 = get_potential_stat_bonus(node_50_stat, 50)
+            potential_lines.append(f"  Node 50: {node_50_stat} +{bonus_50}")
+        if char_info.potential_60_unlocked:
+            node_60_stat = char_def.get("node_60", "Unknown")
+            bonus_60 = get_potential_stat_bonus(node_60_stat, 60)
+            potential_lines.append(f"  Node 60: {node_60_stat} +{bonus_60}")
+
+        if potential_lines:
+            char_text_lines.append("Potential Nodes:")
+            char_text_lines.extend(potential_lines)
+
+        self.hero_char_info.config(text="\n".join(char_text_lines))
+
+        # Partner card info
+        if char_info.partner_res_id:
+            partner_info = get_partner(char_info.partner_res_id)
+            if partner_info:
+                partner_name = partner_info.get("name", f"Partner {char_info.partner_res_id}")
+                partner_lines = [f"Name: {partner_name}  |  Level: {char_info.partner_level}"]
+
+                # Partner stats
+                partner_stats = get_partner_stats(char_info.partner_res_id, char_info.partner_level)
+                if partner_stats:
+                    partner_lines.append(
+                        f"Stats: ATK +{partner_stats['atk']:.0f}  DEF +{partner_stats['def']:.0f}  HP +{partner_stats['hp']:.0f}"
+                    )
+
+                # Partner passive
+                passive_info = get_partner_passive_info(char_info.partner_res_id, char_info.partner_passive_level)
+                if passive_info:
+                    partner_lines.append(f"Passive (Lv.{char_info.partner_passive_level}): {passive_info}")
+
+                # Friendship level
+                if char_info.friendship_level > 0:
+                    partner_lines.append(f"Friendship: Level {char_info.friendship_level}")
+
+                self.hero_partner_text.config(text="\n".join(partner_lines))
+            else:
+                self.hero_partner_text.config(text=f"Partner ID: {char_info.partner_res_id} (Unknown)")
+        else:
+            self.hero_partner_text.config(text="No partner equipped")
+
+        # Calculate and display stats
+        equipped = self.optimizer.characters.get(hero_name, [])
+        stats = self.optimizer.calculate_build_stats(equipped, char_info)
+
+        stats_lines = [
+            f"ATK: {stats['final_atk']:.0f}  |  DEF: {stats['final_def']:.0f}  |  HP: {stats['final_hp']:.0f}",
+            f"CRate: {stats['final_crit_rate']:.1f}%  |  CDmg: {stats['final_crit_dmg']:.1f}%",
+            f"Speed: {stats.get('final_speed', 0):.0f}  |  Hit: {stats.get('final_hit', 0):.1f}%  |  Res: {stats.get('final_res', 0):.1f}%"
+        ]
+        self.hero_stats_label.config(text="\n".join(stats_lines))
+
+        # Display gear
+        equipped_by_slot = {g.slot: g for g in equipped}
+
+        for slot_num in range(1, 7):
+            gear = equipped_by_slot.get(slot_num)
+            if not gear:
+                self.gear_labels[slot_num].config(text="Empty", fg=self.colors["fg_dim"])
+                self.gear_frames[slot_num].config(bg=self.colors["bg_dark"])
+                continue
+
+            # Set background color by rarity
+            rarity_bg = RARITY_BG_COLORS.get(gear.rarity, self.colors["bg_dark"])
+            self.gear_frames[slot_num].config(bg=rarity_bg)
+
+            # Gear name and level
+            gear_name = f"{SETS.get(gear.set_id, ('Unknown Set',))[0]} +{gear.enhance_level}"
+            rarity_color = RARITY_COLORS.get(gear.rarity, self.colors["fg"])
+
+            # Main stat
+            main_stat_line = f"{gear.main_stat.name}: {gear.main_stat.format_value()}"
+
+            # Substats with colored rolls
+            substat_lines = []
+            for sub in gear.substats:
+                stat_name = sub.name
+                # Get colored parts for this substat
+                colored_parts = self.format_roll_with_color(sub, self.gear_frames[slot_num], rarity_bg)
+
+                if sub.roll_count > 1 and sub.rolls:
+                    # Multi-roll format: "StatName +total (parts)"
+                    total_val = sub.format_value()
+                    parts_str = ",".join([part[0] for part in colored_parts])
+                    substat_lines.append((f"{stat_name} +{total_val} ({parts_str})", colored_parts))
+                else:
+                    # Single roll: just "StatName +value"
+                    substat_lines.append((f"{stat_name} +{colored_parts[0][0]}", colored_parts))
+
+            # Build final text with basic formatting (we'll use a Frame with Labels for true color support)
+            # For now, use plain text with color hints
+            text_parts = [gear_name, main_stat_line]
+            for substat_line, colored_parts in substat_lines:
+                # For Label widget, we can't mix colors easily, so use the first color
+                # (This is a simplification - full implementation would need Text widget or multiple Labels)
+                text_parts.append(substat_line.split("(")[0].strip())  # Just the "StatName +total" part
+
+            # Clear previous content and rebuild with colored labels
+            self.gear_labels[slot_num].destroy()
+
+            # Create a frame to hold multiple labels for color support
+            content_frame = tk.Frame(self.gear_frames[slot_num], bg=rarity_bg)
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=3, pady=(0, 3))
+
+            # Gear name in rarity color
+            name_label = tk.Label(
+                content_frame,
+                text=gear_name,
+                font=("Consolas", 8, "bold"),
+                bg=rarity_bg,
+                fg=rarity_color,
+                anchor="nw",
+                justify=tk.LEFT
+            )
+            name_label.pack(fill=tk.X)
+
+            # Main stat
+            main_label = tk.Label(
+                content_frame,
+                text=main_stat_line,
+                font=("Consolas", 8),
+                bg=rarity_bg,
+                fg=self.colors["fg"],
+                anchor="nw",
+                justify=tk.LEFT
+            )
+            main_label.pack(fill=tk.X)
+
+            # Substats with individual roll coloring
+            for sub in gear.substats:
+                stat_name = sub.name
+                colored_parts = self.format_roll_with_color(sub, self.gear_frames[slot_num], rarity_bg)
+
+                # Create a frame for this substat line to hold inline colored labels
+                substat_frame = tk.Frame(content_frame, bg=rarity_bg)
+                substat_frame.pack(fill=tk.X, anchor="nw")
+
+                # Stat name
+                name_part = tk.Label(
+                    substat_frame,
+                    text=f"{stat_name} +",
+                    font=("Consolas", 8),
+                    bg=rarity_bg,
+                    fg=self.colors["fg"],
+                    anchor="w"
+                )
+                name_part.pack(side=tk.LEFT)
+
+                if sub.roll_count > 1 and sub.rolls:
+                    # Multi-roll: show total + (parts)
+                    total_val = sub.format_value()
+                    total_label = tk.Label(
+                        substat_frame,
+                        text=f"{total_val} (",
+                        font=("Consolas", 8),
+                        bg=rarity_bg,
+                        fg=self.colors["fg"],
+                        anchor="w"
+                    )
+                    total_label.pack(side=tk.LEFT)
+
+                    # Individual rolls with color
+                    for idx, (part_text, part_color) in enumerate(colored_parts):
+                        part_label = tk.Label(
+                            substat_frame,
+                            text=part_text,
+                            font=("Consolas", 8),
+                            bg=rarity_bg,
+                            fg=part_color,
+                            anchor="w"
+                        )
+                        part_label.pack(side=tk.LEFT)
+
+                        # Add comma separator if not last
+                        if idx < len(colored_parts) - 1:
+                            comma_label = tk.Label(
+                                substat_frame,
+                                text=",",
+                                font=("Consolas", 8),
+                                bg=rarity_bg,
+                                fg=self.colors["fg"],
+                                anchor="w"
+                            )
+                            comma_label.pack(side=tk.LEFT)
+
+                    # Closing parenthesis
+                    close_label = tk.Label(
+                        substat_frame,
+                        text=")",
+                        font=("Consolas", 8),
+                        bg=rarity_bg,
+                        fg=self.colors["fg"],
+                        anchor="w"
+                    )
+                    close_label.pack(side=tk.LEFT)
+                else:
+                    # Single roll - just show the value with color
+                    if colored_parts:
+                        val_label = tk.Label(
+                            substat_frame,
+                            text=colored_parts[0][0],
+                            font=("Consolas", 8),
+                            bg=rarity_bg,
+                            fg=colored_parts[0][1],
+                            anchor="w"
+                        )
+                        val_label.pack(side=tk.LEFT)
+
+            # Store reference to content frame (for future updates)
+            self.gear_labels[slot_num] = content_frame
 
     # Helper methods
     def _update_hero_scrollregion(self):
