@@ -63,8 +63,14 @@ class HeroesTab(BaseTab):
 
     # Sorting and display
     def sort_heroes(self, col: str):
-        """Sort heroes by column."""
-        pass  # Implement in later task
+        """Sort heroes list by column"""
+        if col == self.hero_sort_col:
+            self.hero_sort_reverse = not self.hero_sort_reverse
+        else:
+            self.hero_sort_col = col
+            self.hero_sort_reverse = col in ["gs", "grade", "ego"]
+
+        self.refresh_heroes()
 
     def select_hero_row(self, index: int):
         """Select a hero row."""
