@@ -412,8 +412,34 @@ class HeroesTab(BaseTab):
         self.refresh_heroes()
 
     def select_hero_row(self, index: int):
-        """Select a hero row."""
-        pass  # Implement in later task
+        """Select a hero row and show details"""
+        # Deselect previous
+        if 0 <= self.selected_hero_index < len(self.hero_row_widgets):
+            prev_frame = self.hero_row_widgets[self.selected_hero_index]
+            prev_frame.config(bg=self.colors["bg"])
+            for child in prev_frame.winfo_children():
+                child.config(bg=self.colors["bg"])
+
+        # Select new
+        self.selected_hero_index = index
+        if 0 <= index < len(self.hero_row_widgets):
+            sel_frame = self.hero_row_widgets[index]
+            sel_frame.config(bg=self.colors["bg_highlight"])
+            for child in sel_frame.winfo_children():
+                child.config(bg=self.colors["bg_highlight"])
+
+            # Show details
+            hero_data = self.hero_data_list[index]
+            self.show_hero_details(hero_data["name"])
+        else:
+            # Clear details
+            self.hero_detail_name.config(text="Select a hero")
+            self.hero_char_info.config(text="")
+            self.hero_partner_text.config(text="")
+            self.hero_stats_label.config(text="")
+            for slot_num in range(1, 7):
+                self.gear_labels[slot_num].config(text="Empty", fg=self.colors["fg_dim"])
+                self.gear_frames[slot_num].config(bg=self.colors["bg_dark"])
 
     def show_hero_details(self, hero_name: str):
         """Show hero details."""
