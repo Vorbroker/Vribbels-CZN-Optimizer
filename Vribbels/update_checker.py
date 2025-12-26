@@ -197,3 +197,53 @@ class UpdateChecker:
             download_url=self.releases_url,
             error=error_msg
         )
+
+    def skip_version(self, version: str) -> None:
+        """
+        Mark a version as skipped (don't prompt again for this version).
+
+        Args:
+            version: Version string to skip (e.g., "1.4.0")
+        """
+        metadata = self._read_metadata()
+        skipped = metadata.get('skipped_versions', [])
+
+        if version not in skipped:
+            skipped.append(version)
+            metadata['skipped_versions'] = skipped
+            self._write_metadata(metadata)
+
+    def is_version_skipped(self, version: str) -> bool:
+        """
+        Check if a version has been marked as skipped.
+
+        Args:
+            version: Version string to check
+
+        Returns:
+            True if version is in skipped list
+        """
+        metadata = self._read_metadata()
+        return version in metadata.get('skipped_versions', [])
+
+    def get_cached_info(self) -> dict:
+        """
+        Get last known update information from cache.
+
+        Used for displaying update status when offline.
+
+        Returns:
+            Dict with current_version, latest_version, last_check, error
+        """
+        metadata = self._read_metadata()
+
+        return {
+            'current_version': self.current_version,
+            'latest_version': metadata.get('last_known_latest', self.current_version),
+            'last_check_timestamp': metadata.get('last_check_timestamp'),
+            'last_error': metadata.get('last_error')
+        }
+
+    def open_releases_page(self) -> None:
+        """Open the GitHub releases page in default browser."""
+        webbrowser.open(self.releases_url)
