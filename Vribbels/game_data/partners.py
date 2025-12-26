@@ -21,6 +21,21 @@ DEFAULT_PARTNER = {
 # Contains: name, grade, class, passive_name, passive_desc, values, stats, ego_name, ego_cost, ego_desc
 # Note: Values marked with # EST are estimated (linear interpolation) - update when real data is available
 PARTNERS = {
+    1058: {
+        "name": "Solia",
+        "grade": 5,
+        "class": "Ranger",
+        "passive_name": "Spacetime Warp",
+        "passive_desc": "+{ExtraDMG%}% Extra Attack damage of the assigned combatant.\nWhen the assigned combatant Draws for the first time each turn using an ability, +{CardDMG%}% Attack Card Damage for 1 turn.",
+        "values": {
+            "ExtraDMG%": (20, 25, 30, 35, 40),
+            "CardDMG%": (10, 13, 15, 18, 20),
+        },
+        "stats": {"ExtraDMG%": (20, 25, 30, 35, 40)},
+        "ego_name": "Spacetime Rift",
+        "ego_cost": 3,
+        "ego_desc": "250% Damage\nMark 1",
+    },
     20001: {
         "name": "Arwen",
         "grade": 4,
