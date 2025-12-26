@@ -29,7 +29,28 @@ class HeroesTab(BaseTab):
 
     def _init_state(self):
         """Initialize all state variables."""
-        pass  # Implement in next task
+        # Sorting state
+        self.hero_sort_col = "name"
+        self.hero_sort_reverse = False
+
+        # Canvas/List widgets (set in setup_ui)
+        self.hero_canvas = None
+        self.hero_list_frame = None
+        self.hero_canvas_window = None
+        self.hero_row_widgets = []
+        self.hero_data_list = []
+        self.hero_col_char_widths = None
+        self.selected_hero_index = -1
+        self.hero_header_labels = []
+
+        # Detail widgets (set in setup_ui)
+        self.user_info_label = None
+        self.hero_detail_name = None
+        self.hero_char_info = None
+        self.hero_partner_text = None
+        self.hero_stats_label = None
+        self.gear_frames = {}
+        self.gear_labels = {}
 
     def setup_ui(self):
         """Setup the Heroes tab UI."""
