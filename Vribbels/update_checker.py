@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from typing import Optional
 import requests
 from packaging import version as pkg_version
+import tkinter as tk
+from tkinter import ttk
 
 from version import __version__
 
@@ -247,3 +249,155 @@ class UpdateChecker:
     def open_releases_page(self) -> None:
         """Open the GitHub releases page in default browser."""
         webbrowser.open(self.releases_url)
+
+
+class UpdateDialog:
+    """
+    Modal dialog shown when an update is available.
+
+    Displays current and latest version, with options to:
+    - View the release on GitHub
+    - Skip this version
+    - Dismiss the notification
+    """
+
+    def __init__(self, parent: tk.Tk, update_checker: UpdateChecker,
+                 latest_version: str, colors: dict):
+        """
+        Initialize the update dialog.
+
+        Args:
+            parent: Parent window (main GUI window)
+            update_checker: UpdateChecker instance
+            latest_version: Latest available version string
+            colors: Color palette dictionary
+        """
+        self.update_checker = update_checker
+        self.latest_version = latest_version
+        self.colors = colors
+
+        # Create modal dialog
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Update Available")
+        self.dialog.geometry("400x200")
+        self.dialog.resizable(False, False)
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+
+        # Center on screen
+        self.dialog.update_idletasks()
+        x = (self.dialog.winfo_screenwidth() // 2) - (400 // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (200 // 2)
+        self.dialog.geometry(f"400x200+{x}+{y}")
+
+        self.dialog.configure(bg=colors["bg"])
+
+        self._build_ui()
+
+    def _build_ui(self):
+        """Build the dialog UI."""
+        # Content frame
+        content = tk.Frame(self.dialog, bg=self.colors["bg"])
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Title
+        title_label = tk.Label(
+            content,
+            text="Update Available",
+            font=("Segoe UI", 14, "bold"),
+            bg=self.colors["bg"],
+            fg=self.colors["accent"]
+        )
+        title_label.pack(pady=(0, 15))
+
+        # Version info
+        info_frame = tk.Frame(content, bg=self.colors["bg"])
+        info_frame.pack(pady=(0, 15))
+
+        current_label = tk.Label(
+            info_frame,
+            text=f"Current version:  {self.update_checker.current_version}",
+            font=("Segoe UI", 10),
+            bg=self.colors["bg"],
+            fg=self.colors["fg"]
+        )
+        current_label.pack()
+
+        latest_label = tk.Label(
+            info_frame,
+            text=f"Latest version:   {self.latest_version}",
+            font=("Segoe UI", 10, "bold"),
+            bg=self.colors["bg"],
+            fg=self.colors["green"]
+        )
+        latest_label.pack()
+
+        # Message
+        msg_label = tk.Label(
+            content,
+            text="A new version is available!",
+            font=("Segoe UI", 9),
+            bg=self.colors["bg"],
+            fg=self.colors["fg_dim"]
+        )
+        msg_label.pack(pady=(0, 20))
+
+        # Buttons
+        btn_frame = tk.Frame(content, bg=self.colors["bg"])
+        btn_frame.pack()
+
+        view_btn = tk.Button(
+            btn_frame,
+            text="View Release",
+            command=self._view_release,
+            bg=self.colors["accent"],
+            fg="#000000",
+            font=("Segoe UI", 9, "bold"),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        view_btn.pack(side=tk.LEFT, padx=5)
+
+        skip_btn = tk.Button(
+            btn_frame,
+            text="Skip This Version",
+            command=self._skip_version,
+            bg=self.colors["bg_lighter"],
+            fg=self.colors["fg"],
+            font=("Segoe UI", 9),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        skip_btn.pack(side=tk.LEFT, padx=5)
+
+        dismiss_btn = tk.Button(
+            btn_frame,
+            text="Dismiss",
+            command=self._dismiss,
+            bg=self.colors["bg_lighter"],
+            fg=self.colors["fg"],
+            font=("Segoe UI", 9),
+            relief=tk.FLAT,
+            padx=15,
+            pady=5,
+            cursor="hand2"
+        )
+        dismiss_btn.pack(side=tk.LEFT, padx=5)
+
+    def _view_release(self):
+        """Open releases page and close dialog."""
+        self.update_checker.open_releases_page()
+        self.dialog.destroy()
+
+    def _skip_version(self):
+        """Skip this version and close dialog."""
+        self.update_checker.skip_version(self.latest_version)
+        self.dialog.destroy()
+
+    def _dismiss(self):
+        """Just close the dialog."""
+        self.dialog.destroy()
