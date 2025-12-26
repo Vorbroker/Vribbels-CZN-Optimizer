@@ -56,6 +56,16 @@ class UpdateChecker:
         # Ensure config directory exists
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
+    @property
+    def _default_metadata(self) -> dict:
+        """Return default metadata structure."""
+        return {
+            "last_check_timestamp": None,
+            "last_known_latest": None,
+            "skipped_versions": [],
+            "last_error": None
+        }
+
     def _read_metadata(self) -> dict:
         """
         Read metadata from JSON file.
@@ -64,24 +74,14 @@ class UpdateChecker:
             Metadata dict with default values if file doesn't exist
         """
         if not self.config_file.exists():
-            return {
-                "last_check_timestamp": None,
-                "last_known_latest": None,
-                "skipped_versions": [],
-                "last_error": None
-            }
+            return self._default_metadata
 
         try:
-            with open(self.config_file, 'r') as f:
+            with open(self.config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError):
             # Return defaults if file is corrupted
-            return {
-                "last_check_timestamp": None,
-                "last_known_latest": None,
-                "skipped_versions": [],
-                "last_error": None
-            }
+            return self._default_metadata
 
     def _write_metadata(self, metadata: dict) -> None:
         """
@@ -91,7 +91,7 @@ class UpdateChecker:
             metadata: Metadata dictionary to save
         """
         try:
-            with open(self.config_file, 'w') as f:
+            with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata, f, indent=2)
         except IOError as e:
             print(f"Warning: Could not save update metadata: {e}")
