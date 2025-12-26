@@ -283,7 +283,122 @@ class HeroesTab(BaseTab):
     # Public API
     def refresh_heroes(self):
         """Refresh the heroes list."""
-        pass  # Implement in later task
+        # Clear existing rows
+        for widget in self.hero_row_widgets:
+            widget.destroy()
+        self.hero_row_widgets.clear()
+        self.hero_data_list.clear()
+        self.selected_hero_index = -1
+
+        # Update user info
+        if self.optimizer.user_info:
+            ui = self.optimizer.user_info
+            self.user_info_label.config(
+                text=f"User: {ui.name}  |  Server: {ui.server}  |  UID: {ui.user_id}  |  Data: {self.optimizer.capture_time}"
+            )
+        else:
+            self.user_info_label.config(text="No data loaded")
+
+        # Prepare hero data
+        for char_name, char_info in self.optimizer.character_info.items():
+            if not char_info:
+                continue
+
+            char_def = get_character_by_name(char_name)
+            if not char_def:
+                continue
+
+            # Calculate gear score
+            equipped = self.optimizer.characters.get(char_name, [])
+            gear_score = sum(g.gear_score for g in equipped)
+
+            # Add to data list
+            self.hero_data_list.append({
+                "name": char_name,
+                "attr": char_def.get("attribute", "?"),
+                "class": char_def.get("class", "?"),
+                "grade": char_def.get("grade", 0),
+                "level": char_info.level,
+                "asc": char_info.ascension,
+                "lb": char_info.limit_break,
+                "ego": char_info.ego_level,
+                "gs": gear_score
+            })
+
+        # Sort heroes
+        sort_key_map = {
+            "name": lambda x: x["name"],
+            "attr": lambda x: x["attr"],
+            "class": lambda x: x["class"],
+            "grade": lambda x: x["grade"],
+            "level": lambda x: x["level"],
+            "asc": lambda x: x["asc"],
+            "lb": lambda x: x["lb"],
+            "ego": lambda x: x["ego"],
+            "gs": lambda x: x["gs"]
+        }
+
+        sort_fn = sort_key_map.get(self.hero_sort_col, lambda x: x["name"])
+        self.hero_data_list.sort(key=sort_fn, reverse=self.hero_sort_reverse)
+
+        # Highlight sort header
+        for lbl in self.hero_header_labels:
+            lbl.config(fg=self.colors["fg_dim"])
+        # Find the sorted column and highlight it
+        for i, (col_id, _, _) in enumerate([
+            ("name", "Name", 20),
+            ("attr", "Attr", 8),
+            ("class", "Class", 10),
+            ("grade", "★", 3),
+            ("level", "Lv", 3),
+            ("asc", "Asc", 3),
+            ("lb", "LB", 3),
+            ("ego", "Ego", 3),
+            ("gs", "GS", 6),
+        ]):
+            if col_id == self.hero_sort_col:
+                arrow = " ▼" if self.hero_sort_reverse else " ▲"
+                self.hero_header_labels[i].config(fg=self.colors["purple"], text=f"{['Name','Attr','Class','★','Lv','Asc','LB','Ego','GS'][i]}{arrow}")
+                break
+
+        # Display rows
+        for idx, hero_data in enumerate(self.hero_data_list):
+            row_frame = tk.Frame(self.hero_list_frame, bg=self.colors["bg"])
+            row_frame.pack(fill=tk.X, pady=1)
+
+            # Name
+            name_lbl = tk.Label(
+                row_frame,
+                text=hero_data["name"][:self.hero_col_char_widths["name"]],
+                bg=self.colors["bg"],
+                fg=ATTRIBUTE_COLORS.get(hero_data["attr"], self.colors["fg"]),
+                font=("Consolas", 9),
+                width=self.hero_col_char_widths["name"],
+                anchor="w",
+                cursor="hand2"
+            )
+            name_lbl.pack(side=tk.LEFT, padx=2)
+            name_lbl.bind("<Button-1>", lambda e, i=idx: self.select_hero_row(i))
+
+            # Other columns
+            for key in ["attr", "class", "grade", "level", "asc", "lb", "ego", "gs"]:
+                val = hero_data[key]
+                lbl = tk.Label(
+                    row_frame,
+                    text=str(val),
+                    bg=self.colors["bg"],
+                    fg=self.colors["fg"],
+                    font=("Consolas", 9),
+                    width=self.hero_col_char_widths[key],
+                    anchor="center",
+                    cursor="hand2"
+                )
+                lbl.pack(side=tk.LEFT, padx=2)
+                lbl.bind("<Button-1>", lambda e, i=idx: self.select_hero_row(i))
+
+            self.hero_row_widgets.append(row_frame)
+
+        self._update_hero_scrollregion()
 
     # Sorting and display
     def sort_heroes(self, col: str):
