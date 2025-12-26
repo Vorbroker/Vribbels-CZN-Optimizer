@@ -94,7 +94,7 @@ class OptimizerGUI:
             capture_manager=self.capture_manager,
             colors=self.colors,
             style=self.style,
-            load_data_callback=self.load_data,
+            load_data_callback=self.load_file,
             switch_tab_callback=self._switch_to_tab
         )
 
