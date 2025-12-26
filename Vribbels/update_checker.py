@@ -144,7 +144,12 @@ class UpdateChecker:
 
             # Strip 'v' prefix if present
             latest_version = tag_name.lstrip('v')
-            download_url = release_data.get('html_url', self.releases_url)
+
+            # Validate version string before parsing
+            if not latest_version:
+                raise ValueError("Empty version string from GitHub")
+
+            download_url = release_data.get('html_url') or self.releases_url
 
             # Compare versions using packaging library
             current = pkg_version.parse(self.current_version)
