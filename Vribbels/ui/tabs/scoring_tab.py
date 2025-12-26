@@ -160,31 +160,54 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
         self.weight_status.pack(anchor=tk.W, pady=(10, 0))
 
     def reset_weights(self):
-        """Reset all stat priority weights to default values (0)."""
-        # TODO: Set all priority_vars to 0
-        # TODO: Update optimizer.priorities
-        # TODO: Recalculate scores and refresh inventory
-        pass
+        """Reset all stat weights to 1.0."""
+        for var in self.stat_weight_vars.values():
+            var.set(1.0)
+        self.weight_status.config(text="Weights reset to default (all 1.0)")
 
     def preset_dps_weights(self):
-        """Apply DPS-focused preset weights (ATK%, CRate, CDmg prioritized)."""
-        # TODO: Set ATK%, CRate, CDmg to high values
-        # TODO: Update optimizer.priorities
-        # TODO: Recalculate scores and refresh inventory
-        pass
+        """Set weights for DPS-focused scoring."""
+        presets = {
+            "ATK%": 2.0, "Flat ATK": 1.5, "CRate": 2.0, "CDmg": 2.0,
+            "Extra DMG%": 1.5, "DoT%": 1.0,
+            "DEF%": 0.5, "Flat DEF": 0.3, "HP%": 0.5, "Flat HP": 0.3,
+            "Ego": 1.0,
+        }
+        for stat, var in self.stat_weight_vars.items():
+            var.set(presets.get(stat, 1.0))
+        self.weight_status.config(text="Applied DPS preset weights")
 
     def preset_tank_weights(self):
-        """Apply Tank-focused preset weights (HP%, DEF% prioritized)."""
-        # TODO: Set HP%, DEF% to high values
-        # TODO: Update optimizer.priorities
-        # TODO: Recalculate scores and refresh inventory
-        pass
+        """Set weights for tank-focused scoring."""
+        presets = {
+            "DEF%": 2.0, "Flat DEF": 1.5, "HP%": 2.0, "Flat HP": 1.5,
+            "ATK%": 0.5, "Flat ATK": 0.3, "CRate": 0.5, "CDmg": 0.5,
+            "Extra DMG%": 0.3, "DoT%": 0.3, "Ego": 1.0,
+        }
+        for stat, var in self.stat_weight_vars.items():
+            var.set(presets.get(stat, 1.0))
+        self.weight_status.config(text="Applied Tank preset weights")
 
     def apply_custom_weights(self):
-        """Apply current slider values as custom weights."""
-        # TODO: Read all priority_vars
-        # TODO: Update optimizer.priorities
-        # TODO: Recalculate scores
-        # TODO: Refresh inventory display
-        # TODO: Log action to console
-        pass
+        """Apply custom weights and recalculate all gear scores."""
+        weights = {stat: var.get() for stat, var in self.stat_weight_vars.items()}
+
+        # Recalculate gear scores with custom weights
+        for fragment in self.optimizer.fragments:
+            weighted_score = 0.0
+            for sub in fragment.substats:
+                stat_info = STATS.get(sub.raw_name, (sub.name, sub.name, sub.is_percentage, 1.0, 0.5))
+                max_roll = stat_info[3]
+                normalized = sub.value / (max_roll * sub.roll_count) if max_roll > 0 else 0
+                weight = weights.get(sub.name, 1.0)
+                weighted_score += normalized * sub.roll_count * weight
+            fragment.gear_score = round(weighted_score * 10, 1)
+            fragment.calculate_potential()
+
+        # Refresh other tabs via AppContext
+        self.context.inventory_tab.refresh_inventory()
+        self.context.heroes_tab.refresh_heroes()
+
+        # Update status
+        self.weight_status.config(text="Custom weights applied - scores recalculated",
+                                   foreground=self.colors["green"])
