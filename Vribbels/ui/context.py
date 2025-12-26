@@ -12,6 +12,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from optimizer import GearOptimizer
     from capture import CaptureManager
+    from ui.tabs import InventoryTab, HeroesTab
 
 
 @dataclass
@@ -34,6 +35,8 @@ class AppContext:
         load_data_callback: Callback to load data file (filepath: str) -> None
         switch_tab_callback: Callback to switch to a tab (tab_frame: tk.Widget) -> None
         refresh_callback: Optional callback to refresh displays after data load
+        inventory_tab: Optional reference to InventoryTab for cross-tab refresh
+        heroes_tab: Optional reference to HeroesTab for cross-tab refresh
     """
 
     # Core widgets
@@ -52,3 +55,5 @@ class AppContext:
     load_data_callback: Callable[[str], None]
     switch_tab_callback: Callable[[tk.Widget], None]
     refresh_callback: Optional[Callable[[], None]] = None
+    inventory_tab: Optional['InventoryTab'] = None
+    heroes_tab: Optional['HeroesTab'] = None
