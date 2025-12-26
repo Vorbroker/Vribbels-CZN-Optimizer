@@ -75,14 +75,63 @@ class HeroesTab(BaseTab):
         pass  # Implement in later task
 
     # Helper methods
-    def format_roll_with_color(self, sub: Stat, parent_frame: tk.Frame, bg_color: str):
-        """Format substat roll with color."""
-        pass  # Implement in later task
-
     def _update_hero_scrollregion(self):
-        """Update scroll region."""
-        pass  # Implement in later task
+        """Update scroll region and ensure content stays at top when it fits"""
+        self.hero_canvas.configure(scrollregion=self.hero_canvas.bbox("all"))
+        # If content fits in view, reset to top
+        if self.hero_canvas.bbox("all"):
+            content_height = self.hero_canvas.bbox("all")[3]
+            visible_height = self.hero_canvas.winfo_height()
+            if content_height <= visible_height:
+                self.hero_canvas.yview_moveto(0)
 
     def _on_hero_canvas_configure(self, event):
-        """Handle canvas resize."""
-        pass  # Implement in later task
+        """Handle canvas resize - update width and check scrolling"""
+        self.hero_canvas.itemconfig(self.hero_canvas_window, width=event.width)
+        # Check if we need to reset scroll position
+        if self.hero_canvas.bbox("all"):
+            content_height = self.hero_canvas.bbox("all")[3]
+            if content_height <= event.height:
+                self.hero_canvas.yview_moveto(0)
+
+    def format_roll_with_color(self, sub: Stat, parent_frame: tk.Frame, bg_color: str):
+        """Format a substat roll string with individual roll coloring"""
+        stat_info = STATS.get(sub.raw_name, (sub.name, sub.name, sub.is_percentage, 1.0, 0.5))
+        max_roll = stat_info[3]
+        min_roll = stat_info[4]
+
+        # Build the display text with color info
+        parts = []
+
+        if sub.roll_count > 1 and sub.rolls:
+            # Has upgrades - format: "Stat +total (base,+upg1,+upg2)"
+            for roll in sub.rolls:
+                if roll.stat_type in [1, 2]:  # Base or added stat
+                    val_str = f"{roll.value:.0f}" if not sub.is_percentage else f"{roll.value:.1f}"
+                    if roll.is_max_roll:
+                        parts.append((val_str, self.colors["green"]))
+                    elif roll.is_min_roll:
+                        parts.append((val_str, self.colors["red"]))
+                    else:
+                        parts.append((val_str, self.colors["fg_dim"]))
+                else:  # Upgrade roll (type 3)
+                    val_str = f"+{roll.value:.0f}" if not sub.is_percentage else f"+{roll.value:.1f}"
+                    is_min = abs(roll.value - min_roll) < 0.01
+                    is_max = abs(roll.value - max_roll) < 0.01
+                    if is_max:
+                        parts.append((val_str, self.colors["green"]))
+                    elif is_min:
+                        parts.append((val_str, self.colors["red"]))
+                    else:
+                        parts.append((val_str, self.colors["fg_dim"]))
+
+            return parts
+        else:
+            # Single roll - just color the total
+            val_str = sub.format_value()
+            if sub.rolls and len(sub.rolls) > 0:
+                if sub.rolls[0].is_max_roll:
+                    return [(val_str, self.colors["green"])]
+                elif sub.rolls[0].is_min_roll:
+                    return [(val_str, self.colors["red"])]
+            return [(val_str, self.colors["fg"])]
