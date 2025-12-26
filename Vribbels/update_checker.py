@@ -175,9 +175,9 @@ class UpdateChecker:
             else:
                 error_msg = f"GitHub API error: {e.response.status_code}"
         except (json.JSONDecodeError, KeyError, ValueError) as e:
-            error_msg = f"Invalid response from GitHub: {e}"
+            error_msg = "Invalid response from GitHub"
         except Exception as e:
-            error_msg = f"Unexpected error: {e}"
+            error_msg = "Unexpected error"
 
         # On error, return cached info if available
         metadata['last_error'] = error_msg
