@@ -37,10 +37,10 @@ class ScoringTab(BaseTab):
         self.setup_ui()
 
     def _init_state(self):
-        """Initialize tab state variables."""
-        # Stat priority sliders will be stored here
-        # Key: stat name (e.g., "ATK%", "CRate"), Value: tk.IntVar
-        self.priority_vars = {}
+        """Initialize state variables."""
+        # Widget references (set in setup_ui)
+        self.stat_weight_vars = {}      # Dict[str, tk.DoubleVar] - 16 stat weights
+        self.weight_status = None       # ttk.Label - status message
 
     def setup_ui(self):
         """Set up the scoring configuration UI."""
