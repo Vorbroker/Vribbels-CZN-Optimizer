@@ -75,40 +75,29 @@ class HeroesTab(BaseTab):
         hero_list_container = ttk.Frame(content_pane)
         content_pane.add(hero_list_container, weight=1)
 
-        # Hero list header
-        hero_header_frame = tk.Frame(hero_list_container, bg=self.colors["bg_dark"])
+        # Hero list header - match original structure
+        hero_header_frame = tk.Frame(hero_list_container, bg=self.colors["bg_lighter"])
         hero_header_frame.pack(fill=tk.X)
 
-        # Header columns with sort functionality
-        hero_cols = [
-            ("name", "Name", 20),
-            ("attr", "Attr", 8),
-            ("class", "Class", 10),
-            ("grade", "★", 3),
-            ("level", "Lv", 3),
-            ("asc", "Asc", 3),
-            ("lb", "LB", 3),
-            ("ego", "Ego", 3),
-            ("gs", "GS", 6),
-        ]
+        # Use character widths for consistency between headers and data rows
+        col_char_widths = [12, 6, 9, 10, 7, 5, 5]  # Character widths for each column
+        col_names = ["Combatant", "Grade", "Attribute", "Class", "Level", "Ego", "GS"]
+        col_keys = ["name", "grade", "attribute", "class", "level", "ego", "gs"]
 
-        self.hero_col_char_widths = {col[0]: col[2] for col in hero_cols}
         self.hero_header_labels = []
-
-        for col_id, col_name, width in hero_cols:
-            lbl = tk.Label(
-                hero_header_frame,
-                text=col_name,
-                bg=self.colors["bg_dark"],
-                fg=self.colors["fg_dim"],
-                font=("Consolas", 9, "bold"),
-                width=width,
-                anchor="w" if col_id == "name" else "center",
-                cursor="hand2"
-            )
-            lbl.pack(side=tk.LEFT, padx=2, pady=2)
-            lbl.bind("<Button-1>", lambda e, c=col_id: self.sort_heroes(c))
+        for i, (name, char_width) in enumerate(zip(col_names, col_char_widths)):
+            lbl = tk.Label(hero_header_frame, text=name, width=char_width,
+                          bg=self.colors["bg_lighter"], fg=self.colors["fg"],
+                          font=("Segoe UI", 9, "bold"),
+                          anchor=tk.W if i == 0 else tk.CENTER,
+                          cursor="hand2")
+            lbl.pack(side=tk.LEFT, padx=1)
+            lbl.bind("<Button-1>", lambda e, k=col_keys[i]: self.sort_heroes(k))
+            lbl.bind("<Enter>", lambda e, l=lbl: l.config(fg=self.colors["accent"]))
+            lbl.bind("<Leave>", lambda e, l=lbl: l.config(fg=self.colors["fg"]))
             self.hero_header_labels.append(lbl)
+
+        self.hero_col_char_widths = col_char_widths  # Store character widths for data rows
 
         # Scrollable hero list
         hero_canvas_frame = ttk.Frame(hero_list_container)
@@ -140,145 +129,121 @@ class HeroesTab(BaseTab):
         content_pane.add(hero_detail_container, weight=2)
 
         # Hero name/title
-        self.hero_detail_name = tk.Label(
-            hero_detail_container,
-            text="Select a hero",
-            font=("Segoe UI", 14, "bold"),
-            bg=self.colors["bg"],
-            fg=self.colors["fg"],
-            anchor="w"
-        )
-        self.hero_detail_name.pack(fill=tk.X, padx=5, pady=(5, 10))
+        self.hero_detail_name = ttk.Label(hero_detail_container, text="Select a combatant", font=("Segoe UI", 14, "bold"))
+        self.hero_detail_name.pack(anchor=tk.W, pady=(0, 5))
 
-        # Character info
-        char_info_frame = tk.Frame(hero_detail_container, bg=self.colors["bg_dark"], relief=tk.RIDGE, bd=1)
-        char_info_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+        # Info frame with Character and Partner Card
+        # Character takes only needed space, Partner Card fills remaining with text wrapping
+        info_frame = ttk.Frame(hero_detail_container)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
 
-        char_info_label = tk.Label(
-            char_info_frame,
-            text="Character Info",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["purple"],
-            anchor="w"
-        )
-        char_info_label.pack(fill=tk.X, padx=5, pady=(3, 0))
+        char_frame = ttk.LabelFrame(info_frame, text="Character", padding=5)
+        char_frame.pack(side=tk.LEFT, fill=tk.Y, padx=(0, 5))
+        self.hero_char_info = ttk.Label(char_frame, text="", justify=tk.LEFT)
+        self.hero_char_info.pack(anchor=tk.W)
 
-        self.hero_char_info = tk.Label(
-            char_info_frame,
-            text="",
-            font=("Consolas", 9),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["fg"],
-            anchor="w",
-            justify=tk.LEFT
-        )
-        self.hero_char_info.pack(fill=tk.X, padx=5, pady=(2, 5))
+        partner_frame = ttk.LabelFrame(info_frame, text="Partner Card", padding=5)
+        partner_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        # Use a Text widget for Partner Card to allow proper wrapping
+        self.hero_partner_text = tk.Text(partner_frame, wrap=tk.WORD, height=6,
+                                         bg=self.colors["bg_light"], fg=self.colors["fg"],
+                                         font=("Segoe UI", 9), bd=0, highlightthickness=0,
+                                         padx=2, pady=2)
+        self.hero_partner_text.pack(fill=tk.BOTH, expand=True)
+        self.hero_partner_text.config(state=tk.DISABLED)
 
-        # Partner card info
-        partner_frame = tk.Frame(hero_detail_container, bg=self.colors["bg_dark"], relief=tk.RIDGE, bd=1)
-        partner_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+        stats_frame = ttk.LabelFrame(hero_detail_container, text="Build Stats", padding=5)
+        stats_frame.pack(fill=tk.X, pady=(0, 10))
 
-        partner_label = tk.Label(
-            partner_frame,
-            text="Partner Card",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["purple"],
-            anchor="w"
-        )
-        partner_label.pack(fill=tk.X, padx=5, pady=(3, 0))
+        self.hero_stats_label = ttk.Label(stats_frame, text="", justify=tk.LEFT)
+        self.hero_stats_label.pack(anchor=tk.W)
 
-        self.hero_partner_text = tk.Label(
-            partner_frame,
-            text="",
-            font=("Consolas", 9),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["fg"],
-            anchor="w",
-            justify=tk.LEFT
-        )
-        self.hero_partner_text.pack(fill=tk.X, padx=5, pady=(2, 5))
+        gear_outer_frame = ttk.LabelFrame(hero_detail_container, text="Equipped Memory Fragments", padding=5)
+        gear_outer_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Stats section
-        stats_frame = tk.Frame(hero_detail_container, bg=self.colors["bg_dark"], relief=tk.RIDGE, bd=1)
-        stats_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+        self.gear_frames = {}
+        self.gear_labels = {}
 
-        stats_label = tk.Label(
-            stats_frame,
-            text="Total Stats",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["purple"],
-            anchor="w"
-        )
-        stats_label.pack(fill=tk.X, padx=5, pady=(3, 0))
-
-        self.hero_stats_label = tk.Label(
-            stats_frame,
-            text="",
-            font=("Consolas", 9),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["fg"],
-            anchor="w",
-            justify=tk.LEFT
-        )
-        self.hero_stats_label.pack(fill=tk.X, padx=5, pady=(2, 5))
-
-        # Gear section
-        gear_container = tk.Frame(hero_detail_container, bg=self.colors["bg"])
-        gear_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
-
-        gear_title = tk.Label(
-            gear_container,
-            text="Equipped Memory Fragments",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.colors["bg"],
-            fg=self.colors["purple"],
-            anchor="w"
-        )
-        gear_title.pack(fill=tk.X, pady=(0, 5))
-
-        # 6 gear slots in 2 rows
-        gear_grid = tk.Frame(gear_container, bg=self.colors["bg"])
+        gear_grid = ttk.Frame(gear_outer_frame)
         gear_grid.pack(fill=tk.BOTH, expand=True)
 
-        for slot_num, slot_name in EQUIPMENT_SLOTS.items():
-            row = (slot_num - 1) // 3
-            col = (slot_num - 1) % 3
+        # Slot positions matching original: (slot_num, row, col)
+        slot_positions = [
+            (3, 0, 0), (4, 0, 1),
+            (2, 1, 0), (5, 1, 1),
+            (1, 2, 0), (6, 2, 1),
+        ]
 
-            slot_frame = tk.Frame(gear_grid, bg=self.colors["bg_dark"], relief=tk.RIDGE, bd=1)
-            slot_frame.grid(row=row, column=col, sticky="nsew", padx=5, pady=5)
+        for slot_num, row, col in slot_positions:
+            slot_name = EQUIPMENT_SLOTS.get(slot_num, f"Slot {slot_num}")
 
-            slot_header = tk.Label(
-                slot_frame,
-                text=f"Slot {slot_num}: {slot_name}",
-                font=("Segoe UI", 9, "bold"),
-                bg=self.colors["bg_dark"],
-                fg=self.colors["fg_dim"],
-                anchor="w"
-            )
-            slot_header.pack(fill=tk.X, padx=3, pady=(2, 0))
+            frame = tk.Frame(gear_grid, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
+            frame.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
 
-            slot_content = tk.Label(
-                slot_frame,
-                text="Empty",
-                font=("Consolas", 8),
-                bg=self.colors["bg_dark"],
-                fg=self.colors["fg_dim"],
-                anchor="nw",
-                justify=tk.LEFT
-            )
-            slot_content.pack(fill=tk.BOTH, expand=True, padx=3, pady=(0, 3))
+            header = tk.Label(frame, text=slot_name, font=("Segoe UI", 9, "bold"),
+                            bg=self.colors["bg_light"], fg=self.colors["fg_dim"])
+            header.pack(anchor=tk.W, padx=5, pady=(3, 0))
 
-            self.gear_frames[slot_num] = slot_frame
-            self.gear_labels[slot_num] = slot_content
+            main_stat = tk.Label(frame, text="", font=("Segoe UI", 9, "bold"),
+                               bg=self.colors["bg_light"], fg=self.colors["orange"])
+            main_stat.pack(anchor=tk.W, padx=5)
 
-        # Configure grid weights for equal columns
-        for i in range(3):
-            gear_grid.columnconfigure(i, weight=1)
-        for i in range(2):
-            gear_grid.rowconfigure(i, weight=1)
+            sub_frames = []
+            for i in range(4):
+                sub_frame = tk.Frame(frame, bg=self.colors["bg_light"])
+                sub_frame.pack(anchor=tk.W, padx=5, fill=tk.X)
+
+                gs_contrib = tk.Label(sub_frame, text="", font=("Segoe UI", 7),
+                                     bg=self.colors["bg_light"], fg=self.colors["accent"], width=3, anchor=tk.E)
+                gs_contrib.pack(side=tk.LEFT)
+
+                # Use Text widget for colored roll values
+                sub_text = tk.Text(sub_frame, font=("Segoe UI", 8), height=1, width=40,
+                                   bg=self.colors["bg_light"], fg=self.colors["fg"],
+                                   bd=0, highlightthickness=0, padx=2, pady=0)
+                sub_text.pack(side=tk.LEFT, fill=tk.X, expand=True)
+                # Configure tags for roll colors
+                sub_text.tag_configure("max_roll", foreground=self.colors["green"])
+                sub_text.tag_configure("min_roll", foreground=self.colors["red"])
+                sub_text.tag_configure("normal", foreground=self.colors["yellow"])  # Mid-rolls in yellow
+                sub_text.tag_configure("added", foreground=self.colors["fg"])  # Same as default
+                sub_text.tag_configure("default", foreground=self.colors["fg"])
+                sub_text.config(state=tk.DISABLED)
+
+                sub_frames.append({"frame": sub_frame, "gs": gs_contrib, "text": sub_text})
+
+            set_label = tk.Label(frame, text="", font=("Segoe UI", 8),
+                               bg=self.colors["bg_light"], fg=self.colors["fg_dim"])
+            set_label.pack(anchor=tk.W, padx=5, pady=(2, 0))
+
+            # GS and Potential on same line
+            gs_frame = tk.Frame(frame, bg=self.colors["bg_light"])
+            gs_frame.pack(anchor=tk.W, padx=5, pady=(0, 3), fill=tk.X)
+
+            gs_label = tk.Label(gs_frame, text="", font=("Segoe UI", 8, "bold"),
+                               bg=self.colors["bg_light"], fg=self.colors["accent"])
+            gs_label.pack(side=tk.LEFT)
+
+            pot_label = tk.Label(gs_frame, text="", font=("Segoe UI", 8),
+                                bg=self.colors["bg_light"], fg=self.colors["fg_dim"])
+            pot_label.pack(side=tk.LEFT, padx=(10, 0))
+
+            self.gear_frames[slot_num] = frame
+            self.gear_labels[slot_num] = {
+                "header": header,
+                "main": main_stat,
+                "subs": sub_frames,
+                "set": set_label,
+                "gs": gs_label,
+                "potential": pot_label,
+                "gs_frame": gs_frame
+            }
+
+        gear_grid.columnconfigure(0, weight=1)
+        gear_grid.columnconfigure(1, weight=1)
+        gear_grid.rowconfigure(0, weight=1)
+        gear_grid.rowconfigure(1, weight=1)
+        gear_grid.rowconfigure(2, weight=1)
 
     # Public API
     def refresh_heroes(self):
@@ -290,113 +255,102 @@ class HeroesTab(BaseTab):
         self.hero_data_list.clear()
         self.selected_hero_index = -1
 
-        # Update user info
-        if self.optimizer.user_info:
-            ui = self.optimizer.user_info
-            self.user_info_label.config(
-                text=f"User: {ui.name}  |  Server: {ui.server}  |  UID: {ui.user_id}  |  Data: {self.optimizer.capture_time}"
+        # Update user info - match original format
+        user = self.optimizer.user_info
+        if user.nickname:
+            user_text = (
+                f"User: {user.nickname}  |  Level {user.level}  |  "
+                f"Logins: {user.login_total}, Streak {user.login_continuous} (Best: {user.login_highest_continuous})"
             )
         else:
-            self.user_info_label.config(text="No data loaded")
+            user_text = "No user data available"
+        self.user_info_label.config(text=user_text)
 
-        # Prepare hero data
-        for char_name, char_info in self.optimizer.character_info.items():
-            if not char_info:
-                continue
+        # Get all heroes (from equipped gear or character info)
+        all_heroes = set(self.optimizer.characters.keys()) | set(self.optimizer.character_info.keys())
 
-            char_def = get_character_by_name(char_name)
-            if not char_def:
-                continue
+        # Build hero data for sorting
+        for hero in all_heroes:
+            gear = self.optimizer.characters.get(hero, [])
+            char_info = self.optimizer.character_info.get(hero)
 
-            # Calculate gear score
-            equipped = self.optimizer.characters.get(char_name, [])
-            gear_score = sum(g.gear_score for g in equipped)
+            gs = sum(f.gear_score for f in gear)
+            hero_data = get_character_by_name(hero)
+            grade = hero_data.get("grade", 0)
+            attribute = hero_data.get("attribute", "Unknown")
+            hero_class = hero_data.get("class", "Unknown")
 
-            # Add to data list
+            if char_info:
+                level = char_info.level
+                max_level = char_info.max_level
+                ego = char_info.limit_break
+            else:
+                level = 0
+                max_level = 0
+                ego = 0
+
             self.hero_data_list.append({
-                "name": char_name,
-                "attr": char_def.get("attribute", "?"),
-                "class": char_def.get("class", "?"),
-                "grade": char_def.get("grade", 0),
-                "level": char_info.level,
-                "asc": char_info.ascension,
-                "lb": char_info.limit_break,
-                "ego": char_info.ego_level,
-                "gs": gear_score
+                "name": hero,
+                "grade": grade,
+                "attribute": attribute,
+                "class": hero_class,
+                "level": level,
+                "max_level": max_level,
+                "ego": ego,
+                "gs": gs
             })
 
         # Sort heroes
         sort_key_map = {
-            "name": lambda x: x["name"],
-            "attr": lambda x: x["attr"],
-            "class": lambda x: x["class"],
-            "grade": lambda x: x["grade"],
-            "level": lambda x: x["level"],
-            "asc": lambda x: x["asc"],
-            "lb": lambda x: x["lb"],
-            "ego": lambda x: x["ego"],
-            "gs": lambda x: x["gs"]
+            "name": lambda h: h["name"],
+            "grade": lambda h: h["grade"],
+            "attribute": lambda h: h["attribute"],
+            "class": lambda h: h["class"],
+            "level": lambda h: h["level"],
+            "ego": lambda h: h["ego"],
+            "gs": lambda h: h["gs"],
         }
 
-        sort_fn = sort_key_map.get(self.hero_sort_col, lambda x: x["name"])
-        self.hero_data_list.sort(key=sort_fn, reverse=self.hero_sort_reverse)
+        key_func = sort_key_map.get(self.hero_sort_col, lambda h: h["name"])
+        self.hero_data_list.sort(key=key_func, reverse=self.hero_sort_reverse)
 
-        # Highlight sort header
-        for lbl in self.hero_header_labels:
-            lbl.config(fg=self.colors["fg_dim"])
-        # Find the sorted column and highlight it
-        for i, (col_id, _, _) in enumerate([
-            ("name", "Name", 20),
-            ("attr", "Attr", 8),
-            ("class", "Class", 10),
-            ("grade", "★", 3),
-            ("level", "Lv", 3),
-            ("asc", "Asc", 3),
-            ("lb", "LB", 3),
-            ("ego", "Ego", 3),
-            ("gs", "GS", 6),
-        ]):
-            if col_id == self.hero_sort_col:
-                arrow = " ▼" if self.hero_sort_reverse else " ▲"
-                self.hero_header_labels[i].config(fg=self.colors["purple"], text=f"{['Name','Attr','Class','★','Lv','Asc','LB','Ego','GS'][i]}{arrow}")
-                break
+        # Create rows with individually colored cells
+        for i, h in enumerate(self.hero_data_list):
+            level_str = f"{h['level']}/{h['max_level']}" if h['max_level'] > 0 else "-"
+            ego_str = f"E{h['ego']}" if h['max_level'] > 0 else "-"
+            gs_str = f"{h['gs']:.0f}" if h['gs'] > 0 else "-"
 
-        # Display rows
-        for idx, hero_data in enumerate(self.hero_data_list):
             row_frame = tk.Frame(self.hero_list_frame, bg=self.colors["bg"])
-            row_frame.pack(fill=tk.X, pady=1)
+            row_frame.pack(fill=tk.X)
 
-            # Name
-            name_lbl = tk.Label(
-                row_frame,
-                text=hero_data["name"][:self.hero_col_char_widths["name"]],
-                bg=self.colors["bg"],
-                fg=ATTRIBUTE_COLORS.get(hero_data["attr"], self.colors["fg"]),
-                font=("Consolas", 9),
-                width=self.hero_col_char_widths["name"],
-                anchor="w",
-                cursor="hand2"
-            )
-            name_lbl.pack(side=tk.LEFT, padx=2)
-            name_lbl.bind("<Button-1>", lambda e, i=idx: self.select_hero_row(i))
+            # Store reference to row data
+            row_frame.hero_index = i
+            row_frame.hero_name = h["name"]
 
-            # Other columns
-            for key in ["attr", "class", "grade", "level", "asc", "lb", "ego", "gs"]:
-                val = hero_data[key]
-                lbl = tk.Label(
-                    row_frame,
-                    text=str(val),
-                    bg=self.colors["bg"],
-                    fg=self.colors["fg"],
-                    font=("Consolas", 9),
-                    width=self.hero_col_char_widths[key],
-                    anchor="center",
-                    cursor="hand2"
-                )
-                lbl.pack(side=tk.LEFT, padx=2)
-                lbl.bind("<Button-1>", lambda e, i=idx: self.select_hero_row(i))
+            # Column values
+            values = [h["name"], f"{h['grade']}*", h["attribute"], h["class"], level_str, ego_str, gs_str]
 
+            labels = []
+            for j, (val, char_width) in enumerate(zip(values, self.hero_col_char_widths)):
+                # Determine color - only attribute column (index 2) gets colored
+                if j == 2:  # Attribute column
+                    fg_color = ATTRIBUTE_COLORS.get(h["attribute"], self.colors["fg"])
+                else:
+                    fg_color = self.colors["fg"]
+
+                lbl = tk.Label(row_frame, text=val, width=char_width, anchor=tk.W if j == 0 else tk.CENTER,
+                              bg=self.colors["bg"], fg=fg_color, font=("Segoe UI", 9))
+                lbl.pack(side=tk.LEFT, padx=1)
+                lbl.bind("<Button-1>", lambda e, idx=i: self.select_hero_row(idx))
+                labels.append(lbl)
+
+            row_frame.labels = labels
+            row_frame.bind("<Button-1>", lambda e, idx=i: self.select_hero_row(idx))
             self.hero_row_widgets.append(row_frame)
+
+        # Select first hero
+        if self.hero_row_widgets:
+            self.select_hero_row(0)
 
         self._update_hero_scrollregion()
 
@@ -412,271 +366,281 @@ class HeroesTab(BaseTab):
         self.refresh_heroes()
 
     def select_hero_row(self, index: int):
-        """Select a hero row and show details"""
-        # Deselect previous
+        """Select a hero row and update display"""
+        # Deselect previous - reset ALL labels to proper colors
         if 0 <= self.selected_hero_index < len(self.hero_row_widgets):
-            prev_frame = self.hero_row_widgets[self.selected_hero_index]
-            prev_frame.config(bg=self.colors["bg"])
-            for child in prev_frame.winfo_children():
-                child.config(bg=self.colors["bg"])
+            old_row = self.hero_row_widgets[self.selected_hero_index]
+            old_row.config(bg=self.colors["bg"])
+            old_hero_data = self.hero_data_list[self.selected_hero_index]
+            for j, lbl in enumerate(old_row.labels):
+                lbl.config(bg=self.colors["bg"])
+                # Restore attribute color for attribute column (index 2)
+                if j == 2:
+                    attr_color = ATTRIBUTE_COLORS.get(old_hero_data["attribute"], self.colors["fg"])
+                    lbl.config(fg=attr_color)
+                else:
+                    lbl.config(fg=self.colors["fg"])
 
         # Select new
         self.selected_hero_index = index
         if 0 <= index < len(self.hero_row_widgets):
-            sel_frame = self.hero_row_widgets[index]
-            sel_frame.config(bg=self.colors["bg_highlight"])
-            for child in sel_frame.winfo_children():
-                child.config(bg=self.colors["bg_highlight"])
+            new_row = self.hero_row_widgets[index]
+            new_row.config(bg=self.colors["select"])
+            new_hero_data = self.hero_data_list[index]
+            for j, lbl in enumerate(new_row.labels):
+                lbl.config(bg=self.colors["select"])
+                # Keep attribute color for attribute column
+                if j == 2:
+                    attr_color = ATTRIBUTE_COLORS.get(new_hero_data["attribute"], self.colors["fg"])
+                    lbl.config(fg=attr_color)
+                else:
+                    lbl.config(fg=self.colors["fg"])
 
-            # Show details
-            hero_data = self.hero_data_list[index]
-            self.show_hero_details(hero_data["name"])
-        else:
-            # Clear details
-            self.hero_detail_name.config(text="Select a hero")
-            self.hero_char_info.config(text="")
-            self.hero_partner_text.config(text="")
-            self.hero_stats_label.config(text="")
-            for slot_num in range(1, 7):
-                self.gear_labels[slot_num].config(text="Empty", fg=self.colors["fg_dim"])
-                self.gear_frames[slot_num].config(bg=self.colors["bg_dark"])
+            self.show_hero_details(new_hero_data["name"])
 
     def show_hero_details(self, hero_name: str):
-        """Show detailed hero information including gear"""
+        """Show detailed hero information including gear - matches original exactly"""
+        self.hero_detail_name.config(text=hero_name)
+
         char_info = self.optimizer.character_info.get(hero_name)
-        if not char_info:
-            return
+        if char_info:
+            fb = char_info.friendship_bonus
+            hero_data = get_character_by_name(hero_name)
+            grade = hero_data.get("grade", "?")
+            attribute = hero_data.get("attribute", "Unknown")
+            hero_class = hero_data.get("class", "Unknown")
 
-        char_def = get_character_by_name(hero_name)
-        if not char_def:
-            return
-
-        # Update title with attribute color
-        attr = char_def.get("attribute", "")
-        attr_color = ATTRIBUTE_COLORS.get(attr, self.colors["fg"])
-        self.hero_detail_name.config(text=hero_name, fg=attr_color)
-
-        # Character info section
-        char_text_lines = [
-            f"Grade: {'★' * char_def.get('grade', 0)}  |  Attribute: {attr}  |  Class: {char_def.get('class', '?')}",
-            f"Level: {char_info.level}  |  Ascension: {char_info.ascension}  |  Limit Break: {char_info.limit_break}  |  Ego: {char_info.ego_level}",
-        ]
-
-        # Potential nodes
-        potential_lines = []
-        if char_info.potential_50_unlocked:
-            node_50_stat = char_def.get("node_50", "Unknown")
-            bonus_50 = get_potential_stat_bonus(node_50_stat, 50)
-            potential_lines.append(f"  Node 50: {node_50_stat} +{bonus_50}")
-        if char_info.potential_60_unlocked:
-            node_60_stat = char_def.get("node_60", "Unknown")
-            bonus_60 = get_potential_stat_bonus(node_60_stat, 60)
-            potential_lines.append(f"  Node 60: {node_60_stat} +{bonus_60}")
-
-        if potential_lines:
-            char_text_lines.append("Potential Nodes:")
-            char_text_lines.extend(potential_lines)
-
-        self.hero_char_info.config(text="\n".join(char_text_lines))
-
-        # Partner card info
-        if char_info.partner_res_id:
-            partner_info = get_partner(char_info.partner_res_id)
-            if partner_info:
-                partner_name = partner_info.get("name", f"Partner {char_info.partner_res_id}")
-                partner_lines = [f"Name: {partner_name}  |  Level: {char_info.partner_level}"]
-
-                # Partner stats
-                partner_stats = get_partner_stats(char_info.partner_res_id, char_info.partner_level)
-                if partner_stats:
-                    partner_lines.append(
-                        f"Stats: ATK +{partner_stats['atk']:.0f}  DEF +{partner_stats['def']:.0f}  HP +{partner_stats['hp']:.0f}"
+            # Build potential info string
+            potential_lines = []
+            if char_info.potential_50_level > 0 or char_info.potential_60_level > 0:
+                if char_info.potential_50_level > 0:
+                    stat_type_50, bonus_50 = get_potential_stat_bonus(
+                        char_info.res_id, 50, char_info.potential_50_level
                     )
+                    if stat_type_50:
+                        potential_lines.append(f"  Node 5: Lv{char_info.potential_50_level} ({stat_type_50} +{bonus_50:.1f}%)")
 
-                # Partner passive
-                passive_info = get_partner_passive_info(char_info.partner_res_id, char_info.partner_passive_level)
-                if passive_info:
-                    partner_lines.append(f"Passive (Lv.{char_info.partner_passive_level}): {passive_info}")
+                if char_info.potential_60_level > 0:
+                    stat_type_60, bonus_60 = get_potential_stat_bonus(
+                        char_info.res_id, 60, char_info.potential_60_level
+                    )
+                    if stat_type_60:
+                        potential_lines.append(f"  Node 6: Lv{char_info.potential_60_level} ({stat_type_60} +{bonus_60:.1f}%)")
 
-                # Friendship level
-                if char_info.friendship_level > 0:
-                    partner_lines.append(f"Friendship: Level {char_info.friendship_level}")
+            potential_str = "\n".join(potential_lines) if potential_lines else "  None"
 
-                self.hero_partner_text.config(text="\n".join(partner_lines))
+            char_text = (
+                f"Grade: {grade}*  |  {attribute}  |  {hero_class}\n"
+                f"Level: {char_info.level}/{char_info.max_level}\n"
+                f"Ego Manifestation: E{char_info.limit_break}\n"
+                f"Friendship Lv: {char_info.friendship_index}\n"
+                f"  Bonus: ATK+{fb[0]}, DEF+{fb[1]}, HP+{fb[2]}\n"
+                f"Potential:\n{potential_str}"
+            )
+            self.hero_char_info.config(text=char_text)
+
+            if char_info.partner_name:
+                # Get partner stats
+                partner_stats = get_partner_stats(char_info.partner_res_id, char_info.partner_level)
+
+                # Get partner metadata (grade and class)
+                partner_data = get_partner(char_info.partner_res_id)
+                partner_grade = partner_data.get("grade", 3)
+                partner_class = partner_data.get("class", "Unknown")
+
+                # Get partner passive and ego skill info
+                passive_info = get_partner_passive_info(
+                    char_info.partner_res_id, char_info.partner_limit_break
+                )
+
+                partner_text = (
+                    f"{char_info.partner_name}  ({partner_grade}* {partner_class})\n"
+                    f"Level: {char_info.partner_level}/{char_info.partner_max_level}  |  Ego: E{char_info.partner_limit_break}\n"
+                    f"Stats: ATK+{partner_stats['atk']}, DEF+{partner_stats['def']}, HP+{partner_stats['hp']}\n"
+                    f"\n{passive_info['passive_name']}\n"
+                    f"{passive_info['passive_desc']}\n"
+                    f"\n{passive_info['ego_name']} - {passive_info['ego_cost']} EP\n"
+                    f"{passive_info['ego_desc']}"
+                )
             else:
-                self.hero_partner_text.config(text=f"Partner ID: {char_info.partner_res_id} (Unknown)")
+                partner_text = "No partner equipped"
+            # Update partner card Text widget
+            self.hero_partner_text.config(state=tk.NORMAL)
+            self.hero_partner_text.delete("1.0", tk.END)
+            self.hero_partner_text.insert("1.0", partner_text)
+            self.hero_partner_text.config(state=tk.DISABLED)
         else:
-            self.hero_partner_text.config(text="No partner equipped")
+            self.hero_char_info.config(text="No character data available")
+            # Update partner card Text widget
+            self.hero_partner_text.config(state=tk.NORMAL)
+            self.hero_partner_text.delete("1.0", tk.END)
+            self.hero_partner_text.insert("1.0", "No partner data")
+            self.hero_partner_text.config(state=tk.DISABLED)
 
-        # Calculate and display stats
-        equipped = self.optimizer.characters.get(hero_name, [])
-        stats = self.optimizer.calculate_build_stats(equipped, char_info)
-
-        stats_lines = [
-            f"ATK: {stats['final_atk']:.0f}  |  DEF: {stats['final_def']:.0f}  |  HP: {stats['final_hp']:.0f}",
-            f"CRate: {stats['final_crit_rate']:.1f}%  |  CDmg: {stats['final_crit_dmg']:.1f}%",
-            f"Speed: {stats.get('final_speed', 0):.0f}  |  Hit: {stats.get('final_hit', 0):.1f}%  |  Res: {stats.get('final_res', 0):.1f}%"
-        ]
-        self.hero_stats_label.config(text="\n".join(stats_lines))
-
-        # Display gear
-        equipped_by_slot = {g.slot: g for g in equipped}
+        gear = self.optimizer.characters.get(hero_name, [])
+        gear_by_slot = {p.slot_num: p for p in gear}
+        total_gs = 0
 
         for slot_num in range(1, 7):
-            gear = equipped_by_slot.get(slot_num)
-            if not gear:
-                self.gear_labels[slot_num].config(text="Empty", fg=self.colors["fg_dim"])
-                self.gear_frames[slot_num].config(bg=self.colors["bg_dark"])
+            labels = self.gear_labels.get(slot_num)
+            if not labels:
                 continue
 
-            # Set background color by rarity
-            rarity_bg = RARITY_BG_COLORS.get(gear.rarity, self.colors["bg_dark"])
-            self.gear_frames[slot_num].config(bg=rarity_bg)
+            piece = gear_by_slot.get(slot_num)
 
-            # Gear name and level
-            gear_name = f"{SETS.get(gear.set_id, ('Unknown Set',))[0]} +{gear.enhance_level}"
-            rarity_color = RARITY_COLORS.get(gear.rarity, self.colors["fg"])
+            if piece:
+                total_gs += piece.gear_score
+                rarity_color = RARITY_COLORS.get(piece.rarity_num, self.colors["fg"])
+                bg_color = RARITY_BG_COLORS.get(piece.rarity_num, self.colors["bg_light"])
 
-            # Main stat
-            main_stat_line = f"{gear.main_stat.name}: {gear.main_stat.format_value()}"
+                # Update header to include gear level
+                slot_name = EQUIPMENT_SLOTS.get(slot_num, f"Slot {slot_num}")
+                labels["header"].config(text=f"{slot_name}  +{piece.level}", fg=rarity_color)
 
-            # Substats with colored rolls
-            substat_lines = []
-            for sub in gear.substats:
-                stat_name = sub.name
-                # Get colored parts for this substat
-                colored_parts = self.format_roll_with_color(sub, self.gear_frames[slot_num], rarity_bg)
-
-                if sub.roll_count > 1 and sub.rolls:
-                    # Multi-roll format: "StatName +total (parts)"
-                    total_val = sub.format_value()
-                    parts_str = ",".join([part[0] for part in colored_parts])
-                    substat_lines.append((f"{stat_name} +{total_val} ({parts_str})", colored_parts))
+                if piece.main_stat:
+                    main_text = f"{piece.main_stat.name}  +{piece.main_stat.format_value()}"
+                    labels["main"].config(text=main_text, fg=rarity_color)
                 else:
-                    # Single roll: just "StatName +value"
-                    substat_lines.append((f"{stat_name} +{colored_parts[0][0]}", colored_parts))
+                    labels["main"].config(text="")
 
-            # Build final text with basic formatting (we'll use a Frame with Labels for true color support)
-            # For now, use plain text with color hints
-            text_parts = [gear_name, main_stat_line]
-            for substat_line, colored_parts in substat_lines:
-                # For Label widget, we can't mix colors easily, so use the first color
-                # (This is a simplification - full implementation would need Text widget or multiple Labels)
-                text_parts.append(substat_line.split("(")[0].strip())  # Just the "StatName +total" part
+                num_starting = RARITY_STARTING_SUBSTATS.get(piece.rarity_num, 3)
 
-            # Clear previous content and rebuild with colored labels
-            self.gear_labels[slot_num].destroy()
+                for i, sub_data in enumerate(labels["subs"]):
+                    if i < len(piece.substats):
+                        sub = piece.substats[i]
 
-            # Create a frame to hold multiple labels for color support
-            content_frame = tk.Frame(self.gear_frames[slot_num], bg=rarity_bg)
-            content_frame.pack(fill=tk.BOTH, expand=True, padx=3, pady=(0, 3))
+                        gs_contrib = sub.get_gs_contribution()
+                        sub_data["gs"].config(text=f"{gs_contrib:.1f}")
 
-            # Gear name in rarity color
-            name_label = tk.Label(
-                content_frame,
-                text=gear_name,
-                font=("Consolas", 8, "bold"),
-                bg=rarity_bg,
-                fg=rarity_color,
-                anchor="nw",
-                justify=tk.LEFT
-            )
-            name_label.pack(fill=tk.X)
+                        # Get the Text widget
+                        text_widget = sub_data["text"]
 
-            # Main stat
-            main_label = tk.Label(
-                content_frame,
-                text=main_stat_line,
-                font=("Consolas", 8),
-                bg=rarity_bg,
-                fg=self.colors["fg"],
-                anchor="nw",
-                justify=tk.LEFT
-            )
-            main_label.pack(fill=tk.X)
+                        # Build stat name + total
+                        stat_name = sub.name
+                        total_val = sub.format_value()
 
-            # Substats with individual roll coloring
-            for sub in gear.substats:
-                stat_name = sub.name
-                colored_parts = self.format_roll_with_color(sub, self.gear_frames[slot_num], rarity_bg)
+                        # Get roll color info
+                        roll_parts = self.format_roll_with_color(sub, sub_data["frame"], bg_color)
 
-                # Create a frame for this substat line to hold inline colored labels
-                substat_frame = tk.Frame(content_frame, bg=rarity_bg)
-                substat_frame.pack(fill=tk.X, anchor="nw")
+                        # Check if this is an added stat (type 2)
+                        is_added = i >= num_starting
 
-                # Stat name
-                name_part = tk.Label(
-                    substat_frame,
-                    text=f"{stat_name} +",
-                    font=("Consolas", 8),
-                    bg=rarity_bg,
-                    fg=self.colors["fg"],
-                    anchor="w"
-                )
-                name_part.pack(side=tk.LEFT)
+                        # Enable widget for editing
+                        text_widget.config(state=tk.NORMAL)
+                        text_widget.delete("1.0", tk.END)
 
-                if sub.roll_count > 1 and sub.rolls:
-                    # Multi-roll: show total + (parts)
-                    total_val = sub.format_value()
-                    total_label = tk.Label(
-                        substat_frame,
-                        text=f"{total_val} (",
-                        font=("Consolas", 8),
-                        bg=rarity_bg,
-                        fg=self.colors["fg"],
-                        anchor="w"
-                    )
-                    total_label.pack(side=tk.LEFT)
+                        # Determine base tag for stat name
+                        base_tag = "added" if is_added else "default"
 
-                    # Individual rolls with color
-                    for idx, (part_text, part_color) in enumerate(colored_parts):
-                        part_label = tk.Label(
-                            substat_frame,
-                            text=part_text,
-                            font=("Consolas", 8),
-                            bg=rarity_bg,
-                            fg=part_color,
-                            anchor="w"
-                        )
-                        part_label.pack(side=tk.LEFT)
+                        if sub.roll_count > 1:
+                            # Format: "Stat +total (base | +upg1, +upg2)"
+                            text_widget.insert(tk.END, f"{stat_name} +{total_val} (", base_tag)
 
-                        # Add comma separator if not last
-                        if idx < len(colored_parts) - 1:
-                            comma_label = tk.Label(
-                                substat_frame,
-                                text=",",
-                                font=("Consolas", 8),
-                                bg=rarity_bg,
-                                fg=self.colors["fg"],
-                                anchor="w"
-                            )
-                            comma_label.pack(side=tk.LEFT)
+                            base_shown = False
+                            for idx, (roll_text, roll_color) in enumerate(roll_parts):
+                                # Determine the tag based on color
+                                if roll_color == self.colors["green"]:
+                                    tag = "max_roll"
+                                elif roll_color == self.colors["red"]:
+                                    tag = "min_roll"
+                                else:
+                                    tag = "normal"
 
-                    # Closing parenthesis
-                    close_label = tk.Label(
-                        substat_frame,
-                        text=")",
-                        font=("Consolas", 8),
-                        bg=rarity_bg,
-                        fg=self.colors["fg"],
-                        anchor="w"
-                    )
-                    close_label.pack(side=tk.LEFT)
+                                # First roll is base stat, rest are upgrades
+                                if idx == 0:
+                                    text_widget.insert(tk.END, roll_text, tag)
+                                    base_shown = True
+                                else:
+                                    if idx == 1 and base_shown:
+                                        text_widget.insert(tk.END, " | ", base_tag)
+                                    elif idx > 1:
+                                        text_widget.insert(tk.END, ", ", base_tag)
+                                    text_widget.insert(tk.END, roll_text, tag)
+
+                            text_widget.insert(tk.END, ")", base_tag)
+                        else:
+                            # Single roll - color the value if max/min
+                            text_widget.insert(tk.END, f"{stat_name} +", base_tag)
+                            if roll_parts and len(roll_parts) > 0:
+                                roll_color = roll_parts[0][1]
+                                if roll_color == self.colors["green"]:
+                                    tag = "max_roll"
+                                elif roll_color == self.colors["red"]:
+                                    tag = "min_roll"
+                                else:
+                                    tag = base_tag
+                                text_widget.insert(tk.END, total_val, tag)
+                            else:
+                                text_widget.insert(tk.END, total_val, base_tag)
+
+                        # Disable widget and update background
+                        text_widget.config(state=tk.DISABLED, bg=bg_color)
+
+                        sub_data["frame"].config(bg=bg_color)
+                        sub_data["gs"].config(bg=bg_color)
+                    else:
+                        text_widget = sub_data["text"]
+                        text_widget.config(state=tk.NORMAL)
+                        text_widget.delete("1.0", tk.END)
+                        text_widget.config(state=tk.DISABLED, bg=bg_color)
+                        sub_data["gs"].config(text="", bg=bg_color)
+                        sub_data["frame"].config(bg=bg_color)
+
+                set_pieces = piece.get_set_pieces()
+                # Get bonus description from SETS
+                set_info = SETS.get(piece.set_id)
+                bonus_text = set_info.get("bonus", "") if set_info else ""
+                labels["set"].config(text=f"{piece.set_name} ({set_pieces}) {bonus_text}")
+
+                labels["gs"].config(text=f"GS: {piece.gear_score:.0f}")
+
+                # Add potential display
+                if piece.potential_low != piece.potential_high:
+                    pot_text = f"Potential: {piece.potential_low:.0f}-{piece.potential_high:.0f}"
                 else:
-                    # Single roll - just show the value with color
-                    if colored_parts:
-                        val_label = tk.Label(
-                            substat_frame,
-                            text=colored_parts[0][0],
-                            font=("Consolas", 8),
-                            bg=rarity_bg,
-                            fg=colored_parts[0][1],
-                            anchor="w"
-                        )
-                        val_label.pack(side=tk.LEFT)
+                    pot_text = ""
+                labels["potential"].config(text=pot_text)
 
-            # Store reference to content frame (for future updates)
-            self.gear_labels[slot_num] = content_frame
+                self.gear_frames[slot_num].config(bg=bg_color)
+                for widget in [labels["header"], labels["main"], labels["set"], labels["gs"], labels["potential"], labels["gs_frame"]]:
+                    widget.config(bg=bg_color)
+            else:
+                bg_color = self.colors["bg_light"]
+                # Reset header to just slot name
+                slot_name = EQUIPMENT_SLOTS.get(slot_num, f"Slot {slot_num}")
+                labels["header"].config(text=slot_name, fg=self.colors["fg_dim"])
+                labels["main"].config(text="Empty", fg=self.colors["fg_dim"])
+                for sub_data in labels["subs"]:
+                    sub_data["gs"].config(text="", bg=bg_color)
+                    # Clear Text widget properly
+                    text_widget = sub_data["text"]
+                    text_widget.config(state=tk.NORMAL)
+                    text_widget.delete("1.0", tk.END)
+                    text_widget.config(state=tk.DISABLED, bg=bg_color)
+                    sub_data["frame"].config(bg=bg_color)
+                labels["set"].config(text="")
+                labels["gs"].config(text="")
+                labels["potential"].config(text="")
+
+                self.gear_frames[slot_num].config(bg=bg_color)
+                for widget in [labels["header"], labels["main"], labels["set"], labels["gs"], labels["potential"], labels["gs_frame"]]:
+                    widget.config(bg=bg_color)
+
+        if gear:
+            stats = self.optimizer.calculate_build_stats(gear, hero_name)
+            set_counts = {}
+            for f in gear:
+                set_counts[f.set_name] = set_counts.get(f.set_name, 0) + 1
+            sets_str = " + ".join(f"{c}x{n}" for n, c in set_counts.items() if c >= 2)
+
+            stats_text = (
+                f"Total GS: {total_gs:.0f}  |  Sets: {sets_str}\n"
+                f"ATK: {stats.get('ATK', 0):.0f}  |  DEF: {stats.get('DEF', 0):.0f}  |  HP: {stats.get('HP', 0):.0f}\n"
+                f"CRate: {stats.get('CRate', 0):.1f}%  |  CDmg: {stats.get('CDmg', 0):.1f}%"
+            )
+            self.hero_stats_label.config(text=stats_text)
+        else:
+            self.hero_stats_label.config(text="No gear equipped")
 
     # Helper methods
     def _update_hero_scrollregion(self):
