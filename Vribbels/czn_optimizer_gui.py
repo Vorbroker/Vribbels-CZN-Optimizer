@@ -30,7 +30,7 @@ from game_data import *
 from models import *
 from capture import *
 from optimizer import GearOptimizer
-from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab
+from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab, HeroesTab
 
 
 class MultiSelectListbox(tk.Frame):
@@ -163,9 +163,10 @@ class OptimizerGUI:
         self.materials_tab = self.materials_tab_instance.get_frame()
         self.notebook.add(self.materials_tab, text="Materials")
 
-        self.heroes_tab = ttk.Frame(self.notebook)
+        # Heroes tab - using UI module
+        self.heroes_tab_instance = HeroesTab(self.notebook, self.app_context)
+        self.heroes_tab = self.heroes_tab_instance.get_frame()
         self.notebook.add(self.heroes_tab, text="Combatants")
-        self.setup_heroes_tab()
 
         # Capture tab - using UI module
         self.capture_tab_instance = CaptureTab(self.notebook, self.app_context)
@@ -910,7 +911,7 @@ Shows the range of possible final GS based on remaining upgrades. Low assumes mi
             # Update other tabs
             self.inventory_tab_instance.populate_set_filters()
             self.inventory_tab_instance.refresh_inventory()
-            self.refresh_heroes()
+            self.heroes_tab_instance.refresh_heroes()
             self.materials_tab_instance.refresh_materials()
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load: {e}")
