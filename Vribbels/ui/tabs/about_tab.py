@@ -14,6 +14,7 @@ import threading
 import queue
 import webbrowser
 from datetime import datetime
+from packaging import version as pkg_version
 
 from ui.base_tab import BaseTab
 from ui.context import AppContext
@@ -202,6 +203,10 @@ class AboutTab(BaseTab):
         """Refresh displayed update information from cache."""
         if not self.update_checker:
             # UpdateChecker not set yet
+            self.status_label.config(
+                text="● Configuration error",
+                fg=self.colors["red"]
+            )
             return
 
         cached = self.update_checker.get_cached_info()
@@ -254,7 +259,6 @@ class AboutTab(BaseTab):
             )
         else:
             try:
-                from packaging import version as pkg_version
                 if pkg_version.parse(latest) > pkg_version.parse(current):
                     self.status_label.config(
                         text="↑ Update available",
@@ -265,7 +269,7 @@ class AboutTab(BaseTab):
                         text="✓ Up to date",
                         fg=self.colors["green"]
                     )
-            except:
+            except Exception as e:
                 self.status_label.config(
                     text="● Unknown",
                     fg=self.colors["fg_dim"]
