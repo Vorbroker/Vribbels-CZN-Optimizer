@@ -6,5 +6,6 @@ from .capture_tab import CaptureTab
 from .inventory_tab import InventoryTab
 from .optimizer_tab import OptimizerTab
 from .heroes_tab import HeroesTab
+from .scoring_tab import ScoringTab
 
-__all__ = ['MaterialsTab', 'SetupTab', 'CaptureTab', 'InventoryTab', 'OptimizerTab', 'HeroesTab']
+__all__ = ['MaterialsTab', 'SetupTab', 'CaptureTab', 'InventoryTab', 'OptimizerTab', 'HeroesTab', 'ScoringTab']
