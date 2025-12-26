@@ -120,3 +120,75 @@ class UpdateChecker:
         except (ValueError, TypeError):
             # If timestamp is invalid, check now
             return True
+
+    def check_for_updates(self) -> UpdateInfo:
+        """
+        Check GitHub API for latest release.
+
+        Makes API call, compares versions, updates metadata.
+        Never raises exceptions - errors are returned in UpdateInfo.error.
+
+        Returns:
+            UpdateInfo object with check results
+        """
+        metadata = self._read_metadata()
+
+        try:
+            # Make API request with 5 second timeout
+            response = requests.get(self.api_url, timeout=5)
+            response.raise_for_status()
+
+            # Parse response
+            release_data = response.json()
+            tag_name = release_data.get('tag_name', '')
+
+            # Strip 'v' prefix if present
+            latest_version = tag_name.lstrip('v')
+            download_url = release_data.get('html_url', self.releases_url)
+
+            # Compare versions using packaging library
+            current = pkg_version.parse(self.current_version)
+            latest = pkg_version.parse(latest_version)
+            update_available = latest > current
+
+            # Update metadata
+            metadata['last_check_timestamp'] = datetime.now().isoformat()
+            metadata['last_known_latest'] = latest_version
+            metadata['last_error'] = None
+            self._write_metadata(metadata)
+
+            return UpdateInfo(
+                current_version=self.current_version,
+                latest_version=latest_version,
+                update_available=update_available,
+                download_url=download_url,
+                error=None
+            )
+
+        except requests.exceptions.Timeout:
+            error_msg = "Network timeout"
+        except requests.exceptions.ConnectionError:
+            error_msg = "No internet connection"
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 429:
+                error_msg = "GitHub API rate limit exceeded"
+            else:
+                error_msg = f"GitHub API error: {e.response.status_code}"
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            error_msg = f"Invalid response from GitHub: {e}"
+        except Exception as e:
+            error_msg = f"Unexpected error: {e}"
+
+        # On error, return cached info if available
+        metadata['last_error'] = error_msg
+        self._write_metadata(metadata)
+
+        cached_latest = metadata.get('last_known_latest', self.current_version)
+
+        return UpdateInfo(
+            current_version=self.current_version,
+            latest_version=cached_latest,
+            update_available=False,  # Don't show update on error
+            download_url=self.releases_url,
+            error=error_msg
+        )
