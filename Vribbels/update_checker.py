@@ -55,3 +55,68 @@ class UpdateChecker:
 
         # Ensure config directory exists
         self.config_dir.mkdir(parents=True, exist_ok=True)
+
+    def _read_metadata(self) -> dict:
+        """
+        Read metadata from JSON file.
+
+        Returns:
+            Metadata dict with default values if file doesn't exist
+        """
+        if not self.config_file.exists():
+            return {
+                "last_check_timestamp": None,
+                "last_known_latest": None,
+                "skipped_versions": [],
+                "last_error": None
+            }
+
+        try:
+            with open(self.config_file, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            # Return defaults if file is corrupted
+            return {
+                "last_check_timestamp": None,
+                "last_known_latest": None,
+                "skipped_versions": [],
+                "last_error": None
+            }
+
+    def _write_metadata(self, metadata: dict) -> None:
+        """
+        Write metadata to JSON file.
+
+        Args:
+            metadata: Metadata dictionary to save
+        """
+        try:
+            with open(self.config_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+        except IOError as e:
+            print(f"Warning: Could not save update metadata: {e}")
+
+    def should_check_now(self) -> bool:
+        """
+        Determine if we should check for updates now.
+
+        Returns True if:
+        - Never checked before (metadata doesn't exist)
+        - Last check was >24 hours ago
+
+        Returns:
+            True if update check should be performed
+        """
+        metadata = self._read_metadata()
+        last_check = metadata.get("last_check_timestamp")
+
+        if not last_check:
+            return True
+
+        try:
+            last_check_dt = datetime.fromisoformat(last_check)
+            now = datetime.now()
+            return (now - last_check_dt) > timedelta(hours=24)
+        except (ValueError, TypeError):
+            # If timestamp is invalid, check now
+            return True
