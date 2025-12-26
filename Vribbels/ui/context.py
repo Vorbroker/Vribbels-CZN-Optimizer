@@ -12,6 +12,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from optimizer import GearOptimizer
     from capture import CaptureManager
+    from update_checker import UpdateChecker
     from ui.tabs import InventoryTab, HeroesTab
 
 
@@ -46,6 +47,7 @@ class AppContext:
     # Services
     optimizer: 'GearOptimizer'
     capture_manager: 'CaptureManager'
+    update_checker: 'UpdateChecker'
 
     # Styling
     colors: dict

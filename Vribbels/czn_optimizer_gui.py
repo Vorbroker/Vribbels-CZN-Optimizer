@@ -30,7 +30,8 @@ from game_data import *
 from models import *
 from capture import *
 from optimizer import GearOptimizer
-from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab, HeroesTab, ScoringTab
+from update_checker import UpdateChecker
+from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab, HeroesTab, ScoringTab, AboutTab
 
 
 class MultiSelectListbox(tk.Frame):
@@ -79,6 +80,13 @@ class OptimizerGUI:
 
         self.optimizer = GearOptimizer()
 
+        # Initialize update checker
+        self.update_checker = UpdateChecker()
+
+        # Update check state
+        self.update_check_queue = queue.Queue()
+        self.update_check_done = False
+
         # Initialize capture manager
         self.capture_manager = CaptureManager(
             output_folder=OUTPUT_DIR,
@@ -92,6 +100,7 @@ class OptimizerGUI:
             notebook=None,  # Set after notebook created in setup_ui
             optimizer=self.optimizer,
             capture_manager=self.capture_manager,
+            update_checker=self.update_checker,
             colors=self.colors,
             style=self.style,
             load_data_callback=self.load_data,
@@ -99,6 +108,12 @@ class OptimizerGUI:
         )
 
         self.setup_ui()
+
+        # Check for updates if needed (non-blocking)
+        if self.update_checker.should_check_now():
+            self._check_for_updates_at_startup()
+            self.root.after(100, self._check_update_queue)
+
         self.auto_load()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -185,9 +200,59 @@ class OptimizerGUI:
         self.scoring_tab = self.scoring_tab_instance.get_frame()
         self.notebook.add(self.scoring_tab, text="Scoring")
 
+        # About tab
+        self.about_tab_instance = AboutTab(self.notebook, self.app_context)
+        self.about_tab = self.about_tab_instance.get_frame()
+        self.notebook.add(self.about_tab, text="About")
+
+        # Set update_checker reference in about tab
+        self.about_tab_instance.update_checker = self.update_checker
+
     def _switch_to_tab(self, tab_frame: tk.Widget):
         """Switch notebook to the specified tab frame."""
         self.notebook.select(tab_frame)
+
+    def _check_update_queue(self):
+        """Check for update check results from startup background thread."""
+        try:
+            update_info = self.update_check_queue.get_nowait()
+            self._handle_update_check_result(update_info)
+        except queue.Empty:
+            if not self.update_check_done:
+                self.root.after(100, self._check_update_queue)
+
+    def _handle_update_check_result(self, update_info):
+        """Handle update check result and show dialog if needed."""
+        self.update_check_done = True
+
+        if not update_info or update_info.error or not update_info.update_available:
+            return
+
+        # Check if version is skipped
+        if self.update_checker.is_version_skipped(update_info.latest_version):
+            return
+
+        # Show update dialog
+        from update_checker import UpdateDialog
+        UpdateDialog(
+            self.root,
+            self.update_checker,
+            update_info.latest_version,
+            self.colors
+        )
+
+    def _check_for_updates_at_startup(self):
+        """Check for updates in background thread (non-blocking)."""
+        def do_check():
+            try:
+                update_info = self.update_checker.check_for_updates()
+                self.update_check_queue.put(update_info)
+            except Exception as e:
+                print(f"Error checking for updates: {e}")
+                self.update_check_queue.put(None)
+
+        thread = threading.Thread(target=do_check, daemon=True)
+        thread.start()
 
     def on_close(self):
         """Handle window close event."""
