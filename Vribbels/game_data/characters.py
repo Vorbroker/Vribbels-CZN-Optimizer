@@ -365,7 +365,7 @@ POTENTIAL_STAT_VALUES = {
     "ATK%": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),     # % ATK increase per level
     "DEF%": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),     # % DEF increase per level
     "CRate": (0.6, 1.2, 1.8, 2.4, 3.0, 3.6, 4.2, 4.8, 5.4, 6.0),    # Crit Rate % per level
-    "CDmg": (1.2, 2.4, 3.6, 4.8, 6.0, 7.2, 8.4, 9.6, 10.8, 12.0),   # Crit Damage % per level
+    "CDmg": (2.4, 4.8, 7.2, 9.6, 12.0, 14.4, 16.8, 19.2, 21.6, 24.0),   # Crit Damage % per level
 }
 
 ATTRIBUTE_COLORS = {
