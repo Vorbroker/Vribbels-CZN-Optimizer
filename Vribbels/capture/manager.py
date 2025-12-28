@@ -57,14 +57,25 @@ class Addon:
         self.character_data = None
         self.saved_path = None
 
+    def tls_start_server(self, data):
+        """
+        Hook called when TLS handshake starts with upstream server.
+        Sets the correct SNI hostname for proper virtual hosting.
+        """
+        if self.server_hostname and data.context.server.sni:
+            # Override SNI to use game server hostname instead of IP
+            self.log_callback(f">>> Setting SNI to {self.server_hostname}")
+            data.ssl_conn.set_server_name(self.server_hostname.encode())
+
     def server_connect(self, data):
         """
         Hook called when mitmproxy connects to upstream server.
-        Sets the correct SNI hostname for proper virtual hosting.
+        Sets the address and SNI for proper virtual hosting.
         """
         if self.server_hostname:
-            # Override SNI to use game server hostname instead of IP
-            data.server_conn.sni = self.server_hostname
+            # Set SNI to game server hostname
+            self.log_callback(f">>> server_connect: Setting SNI to {self.server_hostname}")
+            data.data_server().sni = self.server_hostname
 
     def _detect_region(self) -> Optional[str]:
         """Detect server region from world_id in character data."""
@@ -388,9 +399,9 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
         self.log_callback("="*50, None)
         self.log_callback("Starting capture...", None)
 
-        # Resolve game servers
-        if not self.game_server_ips:
-            self.resolve_game_server()
+        # Resolve game servers for current region
+        # (Always re-resolve to ensure we use the correct region's servers)
+        self.resolve_game_server()
 
         if not self.game_server_ips:
             raise CaptureError("Could not resolve game servers.")
