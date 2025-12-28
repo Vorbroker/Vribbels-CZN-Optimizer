@@ -54,6 +54,23 @@ class Addon:
         self.character_data = None
         self.saved_path = None
 
+    def _detect_region(self) -> Optional[str]:
+        """Detect server region from world_id in character data."""
+        if not self.character_data:
+            return None
+
+        # Check for world_id in user data
+        user_data = self.character_data.get("user", {})
+        world_id = user_data.get("world_id", "")
+
+        # Map world_id to region
+        if "world_live_global" in world_id:
+            return "global"
+        elif "world_live_asia" in world_id:
+            return "asia"
+
+        return None
+
     def websocket_message(self, flow):
         """
         Handle WebSocket messages from the game server.
@@ -112,6 +129,7 @@ class Addon:
             "capture_time": datetime.now().isoformat(),
             "inventory": self.inventory_data,
             "characters": self.character_data,
+            "detected_region": self._detect_region(),
         }
 
         with open(self.saved_path, "w") as f:
