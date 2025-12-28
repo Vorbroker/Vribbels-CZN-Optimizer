@@ -31,6 +31,7 @@ from models import *
 from capture import *
 from optimizer import GearOptimizer
 from update_checker import UpdateChecker
+from config import load_config, save_config, AppConfig
 from ui import AppContext, MaterialsTab, SetupTab, CaptureTab, InventoryTab, OptimizerTab, HeroesTab, ScoringTab, AboutTab
 
 
@@ -61,6 +62,9 @@ class MultiSelectListbox(tk.Frame):
 
 class OptimizerGUI:
     def __init__(self):
+        # Load configuration
+        self.config = load_config()
+
         self.root = tk.Tk()
         self.root.title("Vribbels - CZN Memory Fragment Optimizer")
         self.root.geometry("1450x1000")
@@ -104,7 +108,8 @@ class OptimizerGUI:
             colors=self.colors,
             style=self.style,
             load_data_callback=self.load_data,
-            switch_tab_callback=self._switch_to_tab
+            switch_tab_callback=self._switch_to_tab,
+            config=self.config
         )
 
         self.setup_ui()
