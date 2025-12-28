@@ -4,9 +4,37 @@ Capture system constants for CZN data interception.
 
 import sys
 from pathlib import Path
+from dataclasses import dataclass
+from typing import List
+
+
+@dataclass
+class ServerConfig:
+    """Configuration for a game server region."""
+    region_id: str           # Internal ID: "global" or "asia"
+    display_name: str        # User-facing name: "Global" or "Asia"
+    hosts: List[str]         # Game server hostnames
+    world_id: str           # Expected world_id in API responses
+
+
+# Server configurations
+SERVERS = {
+    "global": ServerConfig(
+        region_id="global",
+        display_name="Global",
+        hosts=["live-g-czn-gamemjc2n1x.game.playstove.com"],
+        world_id="world_live_global"
+    ),
+    "asia": ServerConfig(
+        region_id="asia",
+        display_name="Asia",
+        hosts=["live-czn-gamelksj2nmf.game.playstove.com"],
+        world_id="world_live_asia"
+    )
+}
 
 # Network configuration
-GAME_HOSTS = ["live-g-czn-gamemjc2n1x.game.playstove.com"]
+GAME_HOSTS = ["live-g-czn-gamemjc2n1x.game.playstove.com"]  # Deprecated, use SERVERS
 GAME_PORT = 13701
 PROXY_PORT = 13701
 
