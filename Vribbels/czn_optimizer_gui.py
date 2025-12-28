@@ -107,6 +107,7 @@ class OptimizerGUI:
             update_checker=self.update_checker,
             colors=self.colors,
             style=self.style,
+            load_file_callback=self.load_file,
             load_data_callback=self.load_data,
             switch_tab_callback=self._switch_to_tab,
             config=self.config

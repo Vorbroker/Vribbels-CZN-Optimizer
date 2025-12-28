@@ -88,7 +88,7 @@ class OptimizerTab(BaseTab):
         toolbar.pack(fill=tk.X, padx=5, pady=5)
 
         ttk.Button(toolbar, text="Load Data",
-                   command=self.context.load_data_callback).pack(side=tk.LEFT, padx=2)
+                   command=self.context.load_file_callback).pack(side=tk.LEFT, padx=2)
 
         ttk.Label(toolbar, text="Combatant:").pack(side=tk.LEFT, padx=(15, 5))
         self.hero_combo = ttk.Combobox(toolbar, textvariable=self.selected_character,
