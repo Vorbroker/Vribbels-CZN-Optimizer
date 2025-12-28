@@ -39,7 +39,8 @@ class Addon:
     def __init__(
         self,
         output_dir: Path,
-        log_callback: Optional[Callable[[str], None]] = None
+        log_callback: Optional[Callable[[str], None]] = None,
+        server_hostname: Optional[str] = None
     ):
         """
         Initialize the capture addon.
@@ -47,12 +48,23 @@ class Addon:
         Args:
             output_dir: Directory to save captured JSON files
             log_callback: Optional callback for logging messages (defaults to print)
+            server_hostname: Game server hostname for proper SNI (TLS Server Name Indication)
         """
         self.output_dir = output_dir
         self.log_callback = log_callback or print
+        self.server_hostname = server_hostname
         self.inventory_data = None
         self.character_data = None
         self.saved_path = None
+
+    def server_connect(self, data):
+        """
+        Hook called when mitmproxy connects to upstream server.
+        Sets the correct SNI hostname for proper virtual hosting.
+        """
+        if self.server_hostname:
+            # Override SNI to use game server hostname instead of IP
+            data.server_conn.sni = self.server_hostname
 
     def _detect_region(self) -> Optional[str]:
         """Detect server region from world_id in character data."""
@@ -306,12 +318,18 @@ class CaptureManager:
         try:
             addon_script = self.output_folder / "_capture_addon.py"
 
+            # Get server hostname for proper SNI
+            from .constants import SERVERS
+            server_config = SERVERS[self.current_region]
+            server_hostname = server_config.hosts[0]
+
             # Generate standalone script using embedded template
             addon_code = f'''{ADDON_TEMPLATE}
 
 OUTPUT_DIR = Path(r"{self.output_folder.absolute()}")
+SERVER_HOSTNAME = "{server_hostname}"
 
-addons = [Addon(OUTPUT_DIR)]
+addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
 '''
 
             with open(addon_script, "w") as f:
