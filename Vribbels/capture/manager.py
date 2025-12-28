@@ -377,8 +377,10 @@ addons = [Addon(OUTPUT_DIR)]
         if not self.game_server_ips:
             raise CaptureError("Could not resolve game servers.")
 
-        # Get first resolved IP
-        real_ip = list(self.game_server_ips.values())[0]
+        # Get hostname (not IP) for proper virtual hosting and TLS SNI
+        from .constants import SERVERS
+        server_config = SERVERS[self.current_region]
+        game_hostname = server_config.hosts[0]
 
         # Modify hosts file
         try:
@@ -397,9 +399,10 @@ addons = [Addon(OUTPUT_DIR)]
         self.log_callback(f"Starting proxy on port {PROXY_PORT}...", None)
 
         # Build mitmdump command
+        # Use hostname instead of IP for proper virtual hosting and TLS SNI
         cmd = [
             "mitmdump",
-            "--mode", f"reverse:https://{real_ip}:{GAME_PORT}/",
+            "--mode", f"reverse:https://{game_hostname}:{GAME_PORT}/",
             "--listen-port", str(PROXY_PORT),
             "--ssl-insecure",
             "--set", "upstream_cert=false",
