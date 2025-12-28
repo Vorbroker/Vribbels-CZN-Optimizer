@@ -3,6 +3,8 @@
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox
 from capture import check_prerequisites, CaptureError
+from capture.constants import SERVERS
+from config import save_config
 from ..base_tab import BaseTab
 
 
@@ -54,6 +56,35 @@ class CaptureTab(BaseTab):
                                              text="Click 'Start Capture' to begin",
                                              foreground=self.colors["fg_dim"])
         self.capture_info_label.pack(anchor=tk.W)
+
+        # Server Region Selection Frame
+        region_frame = ttk.LabelFrame(main_frame, text="Server Region", padding=10)
+        region_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
+
+        region_inner = ttk.Frame(region_frame)
+        region_inner.pack(fill=tk.X)
+
+        ttk.Label(region_inner, text="Region:").pack(side=tk.LEFT, padx=(0, 10))
+
+        # Dropdown with server options
+        self.region_var = tk.StringVar(value=self.context.config.server_region)
+        self.region_dropdown = ttk.Combobox(
+            region_inner,
+            textvariable=self.region_var,
+            values=list(SERVERS.keys()),
+            state="readonly",
+            width=15
+        )
+        self.region_dropdown.pack(side=tk.LEFT, padx=(0, 10))
+        self.region_dropdown.bind("<<ComboboxSelected>>", self._on_region_changed)
+
+        # Display label showing detected region (initially hidden)
+        self.detected_label = ttk.Label(
+            region_inner,
+            text="",
+            foreground=self.colors['success']
+        )
+        self.detected_label.pack(side=tk.LEFT, padx=(10, 0))
 
         # Button frame
         btn_frame = ttk.Frame(main_frame)
@@ -143,6 +174,13 @@ class CaptureTab(BaseTab):
     def start_capture(self):
         """Start capture using CaptureManager."""
         try:
+            # Set region before starting
+            selected_region = self.region_var.get()
+            self.context.capture_manager.set_region(selected_region)
+
+            # Disable region dropdown during capture
+            self.region_dropdown.config(state="disabled")
+
             self.context.capture_manager.start_capture()
             self.capture_start_btn.config(state=tk.DISABLED)
             self.capture_stop_btn.config(state=tk.NORMAL)
@@ -153,18 +191,54 @@ class CaptureTab(BaseTab):
             messagebox.showerror("Capture Error", str(e))
 
     def stop_capture(self):
-        """Stop capture using CaptureManager."""
-        captured_file = self.context.capture_manager.stop_capture()
+        """Stop capture and handle auto-detection."""
+        result = self.context.capture_manager.stop_capture()
+
+        # Re-enable region dropdown
+        self.region_dropdown.config(state="readonly")
 
         self.capture_start_btn.config(state=tk.NORMAL)
         self.capture_stop_btn.config(state=tk.DISABLED)
         self.capture_info_label.config(text="Check snapshots folder for your data")
 
-        if captured_file and messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
-            self.context.load_data_callback(str(captured_file))
-            self.context.switch_tab_callback(self.context.notebook.nametowidget(
-                self.context.notebook.tabs()[0]
-            ))
+        if result:
+            captured_file, detected_region = result
+
+            # Auto-detection logic
+            if detected_region and detected_region != self.region_var.get():
+                # Auto-switch with notification
+                self.region_var.set(detected_region)
+
+                server_name = SERVERS[detected_region].display_name
+                self.capture_log_msg(
+                    f"✓ Auto-detected {server_name} server, updated selection",
+                    "success"
+                )
+                self.detected_label.config(text=f"✓ Detected: {server_name}")
+
+                # Save to config
+                self.context.config.server_region = detected_region
+                save_config(self.context.config)
+
+            # Load data prompt
+            if messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
+                self.context.load_data_callback(str(captured_file))
+                self.context.switch_tab_callback(self.context.notebook.nametowidget(
+                    self.context.notebook.tabs()[0]
+                ))
+
+    def _on_region_changed(self, *args):
+        """Called when user manually changes region dropdown."""
+        new_region = self.region_var.get()
+
+        # Update config
+        self.context.config.server_region = new_region
+        save_config(self.context.config)
+
+        # Clear detection label (manual selection)
+        self.detected_label.config(text="")
+
+        self.capture_log_msg(f"Region changed to: {SERVERS[new_region].display_name}", "info")
 
     def open_snapshots_folder(self):
         """Open snapshots folder using CaptureManager."""
