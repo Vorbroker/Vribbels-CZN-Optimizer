@@ -34,7 +34,7 @@ SERVERS = {
 }
 
 # Network configuration
-GAME_HOSTS = ["live-g-czn-gamemjc2n1x.game.playstove.com"]  # Deprecated, use SERVERS
+# GAME_HOSTS deprecated - removed, use SERVERS dict instead
 GAME_PORT = 13701
 PROXY_PORT = 13701
 
