@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Optional, Callable
 
-from .constants import PROXY_PORT, GAME_PORT, GAME_HOSTS, HOSTS_PATH
+from .constants import PROXY_PORT, GAME_PORT, HOSTS_PATH
 
 
 class CaptureError(Exception):
@@ -158,6 +158,7 @@ class CaptureManager:
         self.proxy_process = None
         self.game_server_ips = {}
         self.original_hosts_content = None
+        self.current_region = "global"  # Default region
 
     def is_capturing(self) -> bool:
         """Check if currently capturing."""
@@ -173,6 +174,16 @@ class CaptureManager:
         files = list(self.output_folder.glob("memory_fragments_*.json"))
         return max(files, key=lambda f: f.stat().st_mtime) if files else None
 
+    def _read_detected_region(self, capture_file: Path) -> Optional[str]:
+        """Read detected_region from capture file."""
+        import json
+        try:
+            with open(capture_file, 'r') as f:
+                data = json.load(f)
+            return data.get("detected_region")
+        except Exception:
+            return None
+
     def open_snapshots_folder(self):
         """Open snapshots folder in file explorer."""
         self.output_folder.mkdir(exist_ok=True)
@@ -181,13 +192,22 @@ class CaptureManager:
         else:
             subprocess.run(["xdg-open", str(self.output_folder)])
 
+    def set_region(self, region_id: str):
+        """Set the active server region for capture."""
+        from .constants import SERVERS
+        if region_id not in SERVERS:
+            raise ValueError(f"Unknown region: {region_id}")
+        self.current_region = region_id
+
     def resolve_game_server(self):
         """
-        Resolve game server hostnames to IP addresses.
+        Resolve game server hostnames to IP addresses for current region.
         Stores results in self.game_server_ips.
         """
+        from .constants import SERVERS
+        server_config = SERVERS[self.current_region]
         self.game_server_ips = {}
-        for host in GAME_HOSTS:
+        for host in server_config.hosts:
             try:
                 ip = socket.gethostbyname(host)
                 self.game_server_ips[host] = ip
@@ -213,8 +233,10 @@ class CaptureManager:
                 return content
 
             # Add redirect entries
+            from .constants import SERVERS
+            server_config = SERVERS[self.current_region]
             entries = ["\n# CZN-CAPTURE-START"]
-            for host in GAME_HOSTS:
+            for host in server_config.hosts:
                 entries.append(f"127.0.0.1 {host}")
             entries.append("# CZN-CAPTURE-END\n")
 
@@ -401,7 +423,7 @@ addons = [Addon(OUTPUT_DIR)]
         self.log_callback("[OK] Capture started!", "success")
         self.log_callback("Now launch the game and load into the main menu.", None)
 
-    def stop_capture(self) -> Optional[Path]:
+    def stop_capture(self) -> Optional[tuple[Path, Optional[str]]]:
         """
         Stop the capture process:
         1. Terminate proxy process
@@ -438,8 +460,10 @@ addons = [Addon(OUTPUT_DIR)]
         # Get latest capture file
         latest = self.get_latest_capture()
         if latest:
+            detected = self._read_detected_region(latest)
             self.log_callback(f"[OK] Latest capture: {latest.name}", "success")
+            return (latest, detected)
 
         self.log_callback("="*50, None)
 
-        return latest
+        return None
