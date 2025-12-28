@@ -82,7 +82,7 @@ class CaptureTab(BaseTab):
         self.detected_label = ttk.Label(
             region_inner,
             text="",
-            foreground=self.colors['success']
+            foreground=self.colors['green']
         )
         self.detected_label.pack(side=tk.LEFT, padx=(10, 0))
 
