@@ -30,13 +30,14 @@ class AppContext:
         notebook: Main ttk.Notebook containing all tabs
         optimizer: GearOptimizer instance for data and optimization
         capture_manager: CaptureManager for capture operations
+        update_checker: UpdateChecker for version checking
+        config: AppConfig instance for user preferences
         colors: Color palette dictionary
         style: ttk.Style instance for theming
 
         # Callbacks for cross-tab communication
         load_data_callback: Callback to load data file (filepath: str) -> None
         switch_tab_callback: Callback to switch to a tab (tab_frame: tk.Widget) -> None
-        config: AppConfig instance for user preferences
         refresh_callback: Optional callback to refresh displays after data load
         inventory_tab: Optional reference to InventoryTab for cross-tab refresh
         heroes_tab: Optional reference to HeroesTab for cross-tab refresh
@@ -50,6 +51,7 @@ class AppContext:
     optimizer: 'GearOptimizer'
     capture_manager: 'CaptureManager'
     update_checker: 'UpdateChecker'
+    config: 'AppConfig'
 
     # Styling
     colors: dict
@@ -58,7 +60,6 @@ class AppContext:
     # Callbacks
     load_data_callback: Callable[[str], None]
     switch_tab_callback: Callable[[tk.Widget], None]
-    config: 'AppConfig'
     refresh_callback: Optional[Callable[[], None]] = None
     inventory_tab: Optional['InventoryTab'] = None
     heroes_tab: Optional['HeroesTab'] = None
