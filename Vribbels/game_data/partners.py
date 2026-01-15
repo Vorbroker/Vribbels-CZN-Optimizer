@@ -51,6 +51,22 @@ PARTNERS = {
         "ego_cost": 3,
         "ego_desc": "Heal 200%. Apply 1 Damage Reduction.",
     },
+    20002: {
+        "name": "Gaya",
+        "grade": 5,
+        "class": "Controller",
+        "passive_name": "Snow Upon the Heart",
+        "passive_desc": "Increase the assigned Combatant's Defense by {DEF%}%.\n+{DEFDAM%}% Defense-Based Damage Amount to the assigned Combatant's Instinct cards.\nWhen using a Unique Attack Card of the assigned Combatant with an original Cost of 6, +{DMG%}% to Damage Amount of all allies (max 1).",
+        "values": {
+            "DEF%": (8, 10, 12, 14, 16),
+            "DEFDAM%": (20, 25, 30, 35, 40),
+            "DMG%": (20, 25, 30, 35, 40),
+        },
+        "stats": {"DEF%": (8, 10, 12, 14, 16)},
+        "ego_name": "Ice Wyrm's Roar",
+        "ego_cost": 3,
+        "ego_desc": "60% Defense-Based Damage x 4.\nDraw 1 Attack Card(s).",
+    },
     20003: {
         "name": "Alyssa",
         "grade": 4,

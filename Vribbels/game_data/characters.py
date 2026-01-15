@@ -270,6 +270,19 @@ CHARACTERS = {
         "node_50": "CRate",
         "node_60": "CDmg",
     },
+    1052: {
+        "name": "Narja",
+        "grade": 5,
+        "attribute": "Instinct",
+        "class": "Controller",
+        "base_atk": 419,
+        "base_def": 197,
+        "base_hp": 336,
+        "base_crit_rate": 3.0,
+        "base_crit_dmg": 125.0,
+        "node_50": "DEF%",
+        "node_60": "CRate",
+    },
     1056: {
         "name": "Rei",
         "grade": 4,
@@ -363,7 +376,7 @@ CHARACTERS_BY_NAME = {
 POTENTIAL_STAT_VALUES = {
     "HP%": (0.6, 1.2, 1.8, 2.4, 3.0),      # % HP increase per level
     "ATK%": (0.6, 1.2, 1.8, 2.4, 3.0),     # % ATK increase per level
-    "DEF%": (0.6, 1.2, 1.8, 2.4, 3.0),     # % DEF increase per level
+    "DEF%": (1.6, 3.2, 4.8, 6.4, 8.0),     # % DEF increase per level
     "CRate": (2.0, 4.0, 6.0, 8.0, 10.0),   # Crit Rate % per level
     "CDmg": (2.4, 4.8, 7.2, 9.6, 12.0),    # Crit Damage % per level
 }
