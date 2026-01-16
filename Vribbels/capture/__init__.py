@@ -34,6 +34,7 @@ Example:
 
 from .manager import CaptureManager, CaptureError
 from .setup import (
+    find_mitmdump,
     install_mitmproxy,
     setup_certificate,
     check_prerequisites,
@@ -48,6 +49,7 @@ __all__ = [
     'CaptureError',
 
     # Setup
+    'find_mitmdump',
     'install_mitmproxy',
     'setup_certificate',
     'check_prerequisites',

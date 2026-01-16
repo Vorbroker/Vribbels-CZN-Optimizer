@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from .constants import PROXY_PORT, GAME_PORT, HOSTS_PATH
+from .setup import find_mitmdump
 
 
 class CaptureError(Exception):
@@ -28,9 +29,17 @@ Extracts Memory Fragment inventory and character data from game API responses.
 """
 
 import json
+import gzip
+import zlib
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Callable
+
+try:
+    import zstandard as zstd
+    HAS_ZSTD = True
+except ImportError:
+    HAS_ZSTD = False
 
 
 class Addon:
@@ -39,43 +48,34 @@ class Addon:
     def __init__(
         self,
         output_dir: Path,
-        log_callback: Optional[Callable[[str], None]] = None,
-        server_hostname: Optional[str] = None
+        dict_path: Optional[Path] = None,
+        log_callback: Optional[Callable[[str], None]] = None
     ):
         """
         Initialize the capture addon.
 
         Args:
             output_dir: Directory to save captured JSON files
+            dict_path: Optional path to zstd dictionary file
             log_callback: Optional callback for logging messages (defaults to print)
-            server_hostname: Game server hostname for proper SNI (TLS Server Name Indication)
         """
         self.output_dir = output_dir
         self.log_callback = log_callback or print
-        self.server_hostname = server_hostname
         self.inventory_data = None
         self.character_data = None
         self.saved_path = None
+        self.zstd_dict = None
+        self.zstd_dctx = None
 
-    def tls_start_server(self, data):
-        """
-        Hook called when TLS handshake starts with upstream server.
-        Sets the correct SNI hostname for proper virtual hosting.
-        """
-        if self.server_hostname and data.context.server.sni:
-            # Override SNI to use game server hostname instead of IP
-            self.log_callback(f">>> Setting SNI to {self.server_hostname}")
-            data.ssl_conn.set_server_name(self.server_hostname.encode())
-
-    def server_connect(self, data):
-        """
-        Hook called when mitmproxy connects to upstream server.
-        Sets the address and SNI for proper virtual hosting.
-        """
-        if self.server_hostname:
-            # Set SNI to game server hostname
-            self.log_callback(f">>> server_connect: Setting SNI to {self.server_hostname}")
-            data.data_server().sni = self.server_hostname
+        # Load zstd dictionary if available
+        if dict_path and dict_path.exists() and HAS_ZSTD:
+            try:
+                with open(dict_path, 'rb') as f:
+                    dict_data = f.read()
+                self.zstd_dict = zstd.ZstdCompressionDict(dict_data)
+                self.zstd_dctx = zstd.ZstdDecompressor(dict_data=self.zstd_dict)
+            except Exception as e:
+                self.log_callback(f"Warning: Failed to load zstd dictionary: {e}")
 
     def _detect_region(self) -> Optional[str]:
         """Detect server region from world_id in character data."""
@@ -94,6 +94,77 @@ class Addon:
 
         return None
 
+    def _try_decode_binary(self, raw_bytes):
+        """
+        Try to decode binary data - may be compressed or plain JSON.
+        Returns decoded string or None if unable to decode.
+        """
+        size = len(raw_bytes)
+
+        # Try plain UTF-8 first
+        try:
+            return raw_bytes.decode('utf-8')
+        except:
+            pass
+
+        # Check for Zstandard magic number (0x28 0xB5 0x2F 0xFD)
+        ZSTD_MAGIC = bytes([0x28, 0xB5, 0x2F, 0xFD])
+        is_zstd = len(raw_bytes) >= 4 and raw_bytes[:4] == ZSTD_MAGIC
+
+        if is_zstd:
+            if HAS_ZSTD:
+                # Try with dictionary first (required for CZN game data)
+                if self.zstd_dctx:
+                    try:
+                        decompressed = self.zstd_dctx.decompress(raw_bytes)
+                        return decompressed.decode('utf-8')
+                    except:
+                        pass
+
+                # Try without dictionary as fallback
+                try:
+                    dctx = zstd.ZstdDecompressor()
+                    decompressed = dctx.decompress(raw_bytes)
+                    return decompressed.decode('utf-8')
+                except:
+                    pass
+            else:
+                self.log_callback("ERROR: zstandard module not installed!")
+
+        # Try zstd anyway (in case magic check failed)
+        if HAS_ZSTD and not is_zstd:
+            # Try with dictionary first
+            if self.zstd_dctx:
+                try:
+                    decompressed = self.zstd_dctx.decompress(raw_bytes)
+                    return decompressed.decode('utf-8')
+                except:
+                    pass
+            # Try without dictionary
+            try:
+                dctx = zstd.ZstdDecompressor()
+                decompressed = dctx.decompress(raw_bytes)
+                return decompressed.decode('utf-8')
+            except:
+                pass
+
+        # Try gzip decompression
+        try:
+            decompressed = gzip.decompress(raw_bytes)
+            return decompressed.decode('utf-8')
+        except:
+            pass
+
+        # Try zlib decompression (with and without header)
+        for wbits in [15, -15, 31, 47]:
+            try:
+                decompressed = zlib.decompress(raw_bytes, wbits)
+                return decompressed.decode('utf-8')
+            except:
+                pass
+
+        return None
+
     def websocket_message(self, flow):
         """
         Handle WebSocket messages from the game server.
@@ -107,18 +178,47 @@ class Addon:
             return
 
         try:
-            data = json.loads(msg.text)
+            # Handle both text and binary WebSocket frames
+            if msg.is_text:
+                content = msg.text
+            else:
+                # Binary frame - try to decode/decompress
+                content = self._try_decode_binary(msg.content)
+                if content is None:
+                    return
+
+            data = json.loads(content)
             if data.get("res") != "ok":
                 return
 
-            keys = list(data.keys())
-            self.log_callback(f">>> API response keys: {keys}")
+            # Check for 'info' structure (new API format)
+            if "info" in data:
+                info = data.get("info", {})
+
+                # Check for item data in new format
+                if isinstance(info, dict) and "item" in info:
+                    item_info = info.get("item", {})
+
+                    # Check for piece (Memory Fragment) data
+                    if "piece" in item_info:
+                        piece_info = item_info.get("piece", {})
+                        # Store this as inventory data (new format)
+                        if not self.inventory_data:
+                            self.inventory_data = {}
+                        self.inventory_data["info_item_piece"] = piece_info
+                        self._save_data()
+
+                # Check for character data in new format
+                if isinstance(info, dict) and "character" in info:
+                    char_info = info.get("character", {})
+                    if not self.character_data:
+                        self.character_data = {}
+                    self.character_data["info_character"] = char_info
+                    self._save_data()
 
             # Capture inventory data (Memory Fragments)
             if "piece_items" in data:
                 self.inventory_data = data
-                count = len(data.get('piece_items', []))
-                self.log_callback(f">>> Captured inventory: {count} pieces")
                 self._save_data()
 
             # Capture character data
@@ -127,8 +227,6 @@ class Addon:
 
             if has_characters or has_user:
                 self.character_data = data
-                char_count = len(data.get("characters", []))
-                self.log_callback(f">>> Captured character data: {char_count} chars")
                 self._save_data()
 
         except Exception as e:
@@ -159,9 +257,9 @@ class Addon:
             json.dump(save_data, f, indent=2)
 
         count = len(self.inventory_data.get("piece_items", []))
-        has_chars = "Yes" if self.character_data else "No"
+        char_count = len(self.character_data.get("characters", [])) if self.character_data else 0
         self.log_callback(
-            f">>> SAVED {count} Memory Fragments (char data: {has_chars}) to {self.saved_path.name}"
+            f"Saved: {count} Memory Fragments, {char_count} characters -> {self.saved_path.name}"
         )
 '''
 
@@ -316,6 +414,45 @@ class CaptureManager:
         except Exception as e:
             self.log_callback(f"Failed to restore hosts: {e}", "error")
 
+    def _find_dictionary_path(self) -> Optional[Path]:
+        """
+        Find the zstd dictionary file.
+        Searches in order: output_folder, Vribbels folder, bundled location.
+        If found in bundled location, copies to output_folder for addon script access.
+
+        Returns:
+            Path to dictionary file if found, None otherwise
+        """
+        import shutil
+        dict_name = "zstd_dictionary.bin"
+
+        # Check output folder first (always accessible by addon script)
+        dict_path = self.output_folder / dict_name
+        if dict_path.exists():
+            return dict_path
+
+        # Check Vribbels folder (development mode)
+        vribbels_folder = Path(__file__).parent.parent
+        source_path = vribbels_folder / dict_name
+        if source_path.exists():
+            return source_path
+
+        # Check if running from PyInstaller bundle
+        if hasattr(sys, '_MEIPASS'):
+            bundled_path = Path(sys._MEIPASS) / dict_name
+            if bundled_path.exists():
+                # Copy to output folder so addon script can access it
+                # (addon runs as separate process without _MEIPASS access)
+                try:
+                    dest_path = self.output_folder / dict_name
+                    shutil.copy2(bundled_path, dest_path)
+                    return dest_path
+                except Exception:
+                    # Return bundled path as fallback
+                    return bundled_path
+
+        return None
+
     def _generate_addon_script(self) -> Path:
         """
         Generate temporary addon script with configured output directory.
@@ -329,18 +466,20 @@ class CaptureManager:
         try:
             addon_script = self.output_folder / "_capture_addon.py"
 
-            # Get server hostname for proper SNI
-            from .constants import SERVERS
-            server_config = SERVERS[self.current_region]
-            server_hostname = server_config.hosts[0]
+            # Find dictionary path
+            dict_path = self._find_dictionary_path()
+            dict_path_str = f'Path(r"{dict_path}")' if dict_path else "None"
+
+            if not dict_path:
+                self.log_callback("Warning: zstd dictionary not found", "warning")
 
             # Generate standalone script using embedded template
             addon_code = f'''{ADDON_TEMPLATE}
 
 OUTPUT_DIR = Path(r"{self.output_folder.absolute()}")
-SERVER_HOSTNAME = "{server_hostname}"
+DICT_PATH = {dict_path_str}
 
-addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
+addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
 '''
 
             with open(addon_script, "w") as f:
@@ -359,17 +498,43 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
         if not self.proxy_process:
             return
 
+        # Patterns to filter out (verbose mitmproxy messages)
+        skip_patterns = [
+            "Loading script",
+            "client connect",
+            "client disconnect",
+            "server connect",
+            "server disconnect",
+            "HTTP/2 connection",
+            "CONNECT",
+            "<<",
+            ">>",
+        ]
+
         try:
             for line in self.proxy_process.stdout:
                 line = line.strip()
-                if line:
-                    self.log_callback(f"[proxy] {line}", None)
-                    # Update status when data is saved
-                    if "SAVED" in line and "Memory Fragments" in line:
-                        if self.status_callback:
-                            self.status_callback("[OK] Data Captured!")
-        except Exception:
-            pass
+                if not line:
+                    continue
+
+                # Skip verbose mitmproxy messages
+                if any(pattern.lower() in line.lower() for pattern in skip_patterns):
+                    continue
+
+                self.log_callback(f"[proxy] {line}", None)
+
+                # Update status when data is saved
+                if "Saved:" in line and "Memory Fragments" in line:
+                    if self.status_callback:
+                        self.status_callback("[OK] Data Captured!")
+
+            # Check exit code when process ends
+            if self.proxy_process:
+                exit_code = self.proxy_process.poll()
+                if exit_code is not None and exit_code != 0:
+                    self.log_callback(f"[proxy] Process exited with code {exit_code}", "error")
+        except Exception as e:
+            self.log_callback(f"[proxy] Output reader error: {e}", "error")
 
     def start_capture(self):
         """
@@ -396,7 +561,6 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
             # Not on Windows, skip admin check
             pass
 
-        self.log_callback("="*50, None)
         self.log_callback("Starting capture...", None)
 
         # Resolve game servers for current region
@@ -424,11 +588,20 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
             self.restore_hosts_file()
             raise
 
-        self.log_callback(f"Starting proxy on port {PROXY_PORT}...", None)
+        # Find mitmdump executable
+        mitmdump_path = find_mitmdump()
+        if not mitmdump_path:
+            self.restore_hosts_file()
+            raise CaptureError(
+                "mitmdump not found.\n\n"
+                "Please ensure mitmproxy is installed and accessible.\n"
+                "Run 'pip install mitmproxy' in a terminal, or check the Setup tab."
+            )
 
         # Build mitmdump command
+        # Note: -q (quiet) removed to allow seeing errors and addon output
         cmd = [
-            "mitmdump",
+            mitmdump_path,
             "--mode", f"reverse:https://{real_ip}:{GAME_PORT}/",
             "--listen-port", str(PROXY_PORT),
             "--ssl-insecure",
@@ -436,17 +609,19 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
             "--set", "keep_host_header=true",
             "--set", "connection_strategy=lazy",
             "-s", str(addon_script),
-            "-q",
         ]
 
         # Start proxy process
         try:
             # Hide console window on Windows
             startupinfo = None
+            creationflags = 0
             if sys.platform == "win32":
                 startupinfo = subprocess.STARTUPINFO()
                 startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
                 startupinfo.wShowWindow = subprocess.SW_HIDE
+                # CREATE_NO_WINDOW flag to prevent console window
+                creationflags = subprocess.CREATE_NO_WINDOW
 
             self.proxy_process = subprocess.Popen(
                 cmd,
@@ -454,7 +629,8 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
-                startupinfo=startupinfo
+                startupinfo=startupinfo,
+                creationflags=creationflags
             )
             threading.Thread(target=self._read_proxy_output, daemon=True).start()
         except Exception as e:
@@ -467,9 +643,7 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
         if self.status_callback:
             self.status_callback("Capturing...")
 
-        self.log_callback("="*50, None)
-        self.log_callback("[OK] Capture started!", "success")
-        self.log_callback("Now launch the game and load into the main menu.", None)
+        self.log_callback("Capture started! Launch the game and load into the main menu.", "success")
 
     def stop_capture(self) -> Optional[tuple[Path, Optional[str]]]:
         """
@@ -484,8 +658,6 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
         if not self.capturing:
             return None
 
-        self.log_callback("Stopping capture...", None)
-
         # Stop proxy
         if self.proxy_process:
             self.proxy_process.terminate()
@@ -494,11 +666,9 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
             except subprocess.TimeoutExpired:
                 self.proxy_process.kill()
             self.proxy_process = None
-            self.log_callback("[OK] Proxy stopped", "success")
 
         # Restore hosts file
         self.restore_hosts_file()
-        self.log_callback("[OK] Hosts file restored", "success")
 
         self.capturing = False
 
@@ -509,9 +679,8 @@ addons = [Addon(OUTPUT_DIR, server_hostname=SERVER_HOSTNAME)]
         latest = self.get_latest_capture()
         if latest:
             detected = self._read_detected_region(latest)
-            self.log_callback(f"[OK] Latest capture: {latest.name}", "success")
+            self.log_callback(f"Capture stopped. File: {latest.name}", "success")
             return (latest, detected)
 
-        self.log_callback("="*50, None)
-
+        self.log_callback("Capture stopped. No data captured.", None)
         return None

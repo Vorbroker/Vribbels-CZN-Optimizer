@@ -5,7 +5,7 @@ from tkinter import ttk, scrolledtext, messagebox
 import subprocess
 import ctypes
 from pathlib import Path
-from capture import setup_certificate, open_certificate
+from capture import setup_certificate, open_certificate, find_mitmdump
 from ..base_tab import BaseTab
 
 
@@ -118,17 +118,22 @@ STEP 2: Verify setup
                                        foreground=self.colors["red"])
 
         # Check mitmproxy
-        try:
-            result = subprocess.run(["mitmdump", "--version"],
-                                     capture_output=True, text=True)
-            if result.returncode == 0:
-                version = result.stdout.split()[1] if result.stdout else "installed"
-                self.mitmproxy_status.config(text=f"[OK] mitmproxy {version}",
-                                              foreground=self.colors["green"])
-            else:
-                raise FileNotFoundError()
-        except:
-            self.mitmproxy_status.config(text="[X] mitmproxy not installed",
+        mitmdump_path = find_mitmdump()
+        if mitmdump_path:
+            try:
+                result = subprocess.run([mitmdump_path, "--version"],
+                                         capture_output=True, text=True)
+                if result.returncode == 0:
+                    version = result.stdout.split()[1] if result.stdout else "installed"
+                    self.mitmproxy_status.config(text=f"[OK] mitmproxy {version}",
+                                                  foreground=self.colors["green"])
+                else:
+                    raise FileNotFoundError()
+            except:
+                self.mitmproxy_status.config(text="[X] mitmproxy not working",
+                                              foreground=self.colors["red"])
+        else:
+            self.mitmproxy_status.config(text="[X] mitmproxy not found",
                                           foreground=self.colors["red"])
 
         # Check certificate

@@ -7,9 +7,67 @@ import subprocess
 import ctypes
 import time
 import os
+import sys
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+
+def find_mitmdump() -> Optional[str]:
+    """
+    Find the mitmdump executable, checking multiple locations.
+
+    When running from a bundled exe, mitmdump may not be on PATH.
+    This function checks common installation locations.
+
+    Returns:
+        Path to mitmdump executable, or None if not found
+    """
+    # First try shutil.which (checks PATH)
+    mitmdump_path = shutil.which("mitmdump")
+    if mitmdump_path:
+        return mitmdump_path
+
+    # Common locations to check on Windows
+    if sys.platform == "win32":
+        locations_to_check = []
+
+        # Check Python Scripts folders
+        # When running bundled exe, sys.executable is the exe path
+        # But we can still check common Python installation paths
+
+        # User's Python Scripts folder
+        user_scripts = Path.home() / "AppData" / "Local" / "Programs" / "Python"
+        if user_scripts.exists():
+            for python_dir in user_scripts.glob("Python*"):
+                scripts_dir = python_dir / "Scripts"
+                locations_to_check.append(scripts_dir / "mitmdump.exe")
+
+        # System Python Scripts folders
+        for base in [r"C:\Python", r"C:\Program Files\Python", r"C:\Program Files (x86)\Python"]:
+            base_path = Path(base)
+            if base_path.exists():
+                for python_dir in base_path.glob("Python*"):
+                    locations_to_check.append(python_dir / "Scripts" / "mitmdump.exe")
+
+        # pyenv-win locations
+        pyenv_root = Path.home() / ".pyenv" / "pyenv-win" / "versions"
+        if pyenv_root.exists():
+            for version_dir in pyenv_root.glob("*"):
+                locations_to_check.append(version_dir / "Scripts" / "mitmdump.exe")
+
+        # Check if running from bundled exe - look next to the exe
+        if getattr(sys, 'frozen', False):
+            exe_dir = Path(sys.executable).parent
+            locations_to_check.append(exe_dir / "mitmdump.exe")
+
+        # Try each location
+        for path in locations_to_check:
+            if path.exists():
+                return str(path)
+
+    return None
 
 
 @dataclass
@@ -39,19 +97,21 @@ def check_prerequisites() -> PrerequisiteStatus:
     # Check mitmproxy installation
     has_mitmproxy = False
     mitmproxy_version = None
-    try:
-        result = subprocess.run(
-            ["mitmdump", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            has_mitmproxy = True
-            # Extract version from output (e.g., "Mitmproxy 10.1.1")
-            mitmproxy_version = result.stdout.split()[1] if result.stdout else "unknown"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
+    mitmdump_path = find_mitmdump()
+    if mitmdump_path:
+        try:
+            result = subprocess.run(
+                [mitmdump_path, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                has_mitmproxy = True
+                # Extract version from output (e.g., "Mitmproxy 10.1.1")
+                mitmproxy_version = result.stdout.split()[1] if result.stdout else "unknown"
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
 
     # Check certificate
     cert_path = Path.home() / ".mitmproxy" / "mitmproxy-ca-cert.cer"
@@ -104,9 +164,13 @@ def setup_certificate() -> Path:
         FileNotFoundError: If mitmdump is not installed
         Exception: If certificate generation fails
     """
+    mitmdump_path = find_mitmdump()
+    if not mitmdump_path:
+        raise FileNotFoundError("mitmdump not found. Please install mitmproxy.")
+
     # Start mitmdump briefly to generate certificate
     process = subprocess.Popen(
-        ["mitmdump"],
+        [mitmdump_path],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
