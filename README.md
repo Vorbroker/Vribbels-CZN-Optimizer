@@ -77,6 +77,8 @@ Contributions are welcome! Feel free to:
 
 Inspired by [Fribbels Epic 7 Gear Optimizer](https://github.com/fribbels/Fribbels-Epic-7-Optimizer)
 
+Thanks to [EpicSevenAssetRipper](https://github.com/CeciliaBot/EpicSevenAssetRipper) for asset extraction tools
+
 ## Support
 
 If you find this tool helpful, consider supporting development:
