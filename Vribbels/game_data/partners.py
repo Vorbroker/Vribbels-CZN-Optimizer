@@ -521,7 +521,7 @@ PARTNERS = {
         "stats": {},
         "ego_name": "Crackdown Beam Bombardment",
         "ego_cost": 2,
-        "ego_desc": "200% Defense-based Damage to all enemies.\n 1 Counterattack.\n If any enemy's Anticipated Action is attack, 1 Counterattack.",
+        "ego_desc": "200% Defense-based Damage to all enemies.\n1 Counterattack.\nIf any enemy's Anticipated Action is attack, 1 Counterattack.",
     },
     30076: {
         "name": "Peko",
@@ -538,6 +538,22 @@ PARTNERS = {
         "ego_name": "Overclock Beacon",
         "ego_cost": 3,
         "ego_desc": "When an ally inflicts Ravage, 1 Overclock to the assigned Combatant (1 per turn).",
+    },
+    30091: {
+        "name": "Alcea",
+        "grade": 5,
+        "class": "Vanguard",
+        "passive_name": "You're Quite High Maintenance",
+        "passive_desc": "Increase the assigned Combatant's Defense by {DEF%}%.\nWhen an Exhaust card of the assigned Combatant is Exhausted or activated, increase Defense-Based Damage Amount of the next Attack Card used by {DEFDAM%}% (max 1-stack).\nWhen a 2-Cost or higher card of the assigned Combatant is Exhausted, gain {FixedShield%}% Fixed Shield (1 time per turn).",
+        "values": {
+            "DEF%": (8, 10, 12, 14, 16),
+            "DEFDAM%": (20, 25, 30, 35, 40),
+            "FixedShield%": (100, 125, 150, 175, 200),
+        },
+        "stats": {"DEF%": (8, 10, 12, 14, 16)},
+        "ego_name": "If You Require Assistance",
+        "ego_cost": 3,
+        "ego_desc": "250% Defense-Based Damage.\n5 Caustic Remarks.",
     },
 }
 
