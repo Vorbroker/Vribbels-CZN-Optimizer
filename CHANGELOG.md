@@ -5,6 +5,51 @@ All notable changes to Vribbels CZN Optimizer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-02-07
+
+### Added
+- **New Memory Fragment Sets**
+  - **Beast's Yearning** (4-piece, set_id 24): +30% Justice and Order Attack Cards (max 5 per turn)
+  - **Glory's Reign** (4-piece, set_id 25): +5% ally DMG on Exhaust card create/use (max 15%)
+
+### Changed
+- **UI Improvements**
+  - Application window widened from 1450 to 1550 for better layout
+  - Optimizer tab: 4-piece set checkboxes now use 4 columns
+  - Optimizer tab: Selected Build section uses grid layout to reliably show all 6 gear slots
+  - Optimizer tab: Stats Comparison and Results column layout improvements
+
+### Fixed
+- Update checker now re-notifies on launch from cached data when 24h API throttle is active
+- Manual "Check for Updates" uses Yes/No dialog instead of showinfo (X no longer opens browser)
+- Update notification dialog X button properly dismisses via WM_DELETE_WINDOW handler
+
+## [1.5.1] - 2026-02-06
+
+### Added
+- **New Characters**
+  - **Nine** - 5-star character
+- **New Partner Cards**
+  - **Alcea** partner card
+
+## [1.5.0] - 2026-01-16
+
+### Added
+- **Zstd Dictionary Decompression** for compressed game WebSocket data
+- `find_mitmdump()` utility to locate mitmdump in various installation paths
+- Bundled `zstd_dictionary.bin` for compressed data decompression
+
+### Changed
+- Cleaned up capture logging to reduce verbosity
+
+## [1.4.1] - 2026-01-15
+
+### Added
+- **New Characters**
+  - **Narja** (res_id 1052) - 5-star Instinct Controller with DEF%/CRate potential nodes
+- **New Partner Cards**
+  - **Gaya** (res_id 20002) - 5-star Controller with Defense-based damage passive for Instinct cards
+
 ## [1.4.0] - 2025-12-26
 
 ### Added
@@ -123,6 +168,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.6.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.5.1...v1.6.0
+[1.5.1]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.4.1...v1.5.0
+[1.4.1]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.1.0...v1.3.0
