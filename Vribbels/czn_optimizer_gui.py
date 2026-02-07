@@ -67,8 +67,8 @@ class OptimizerGUI:
 
         self.root = tk.Tk()
         self.root.title("Vribbels - CZN Memory Fragment Optimizer")
-        self.root.geometry("1450x1000")
-        self.root.minsize(1200, 800)
+        self.root.geometry("1550x1000")
+        self.root.minsize(1300, 800)
 
         self.colors = {
             "bg": "#1e1e2e", "bg_light": "#2a2a3e", "bg_lighter": "#363650",
@@ -119,6 +119,9 @@ class OptimizerGUI:
         if self.update_checker.should_check_now():
             self._check_for_updates_at_startup()
             self.root.after(100, self._check_update_queue)
+        else:
+            # Re-notify from cached info if a known update exists and isn't skipped
+            self._notify_cached_update()
 
         self.auto_load()
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -259,6 +262,21 @@ class OptimizerGUI:
 
         thread = threading.Thread(target=do_check, daemon=True)
         thread.start()
+
+    def _notify_cached_update(self):
+        """Show update dialog from cached metadata if a known update exists and isn't skipped."""
+        from packaging import version as pkg_version
+        metadata = self.update_checker._read_metadata()
+        cached_latest = metadata.get("last_known_latest")
+        if not cached_latest:
+            return
+        try:
+            if pkg_version.parse(cached_latest) > pkg_version.parse(self.update_checker.current_version):
+                if not self.update_checker.is_version_skipped(cached_latest):
+                    from update_checker import UpdateDialog
+                    UpdateDialog(self.root, self.update_checker, cached_latest, self.colors)
+        except Exception:
+            pass
 
     def on_close(self):
         """Handle window close event."""

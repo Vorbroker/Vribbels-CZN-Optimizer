@@ -293,6 +293,7 @@ class UpdateDialog:
         self.dialog.configure(bg=colors["bg"])
 
         self._build_ui()
+        self.dialog.protocol("WM_DELETE_WINDOW", self._dismiss)
 
     def _build_ui(self):
         """Build the dialog UI."""

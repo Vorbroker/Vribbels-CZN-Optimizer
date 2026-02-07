@@ -107,9 +107,16 @@ class OptimizerTab(BaseTab):
                                       foreground=self.colors["fg_dim"])
         self.status_label.pack(side=tk.RIGHT, padx=10)
 
+        # Container for pane + detail using grid to guarantee detail space
+        body = ttk.Frame(self.frame)
+        body.pack(fill=tk.BOTH, expand=True)
+        body.grid_columnconfigure(0, weight=1)
+        body.grid_rowconfigure(0, weight=1)
+        body.grid_rowconfigure(1, weight=0)
+
         # Main 3-pane layout: Stats Comparison | Configuration | Results
-        main_pane = ttk.PanedWindow(self.frame, orient=tk.HORIZONTAL)
-        main_pane.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        main_pane = ttk.PanedWindow(body, orient=tk.HORIZONTAL)
+        main_pane.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
         # Left pane: Stats Comparison
         left_frame = ttk.LabelFrame(main_pane, text="Stats Comparison", padding=5)
@@ -118,14 +125,15 @@ class OptimizerTab(BaseTab):
         self.stats_tree = ttk.Treeview(left_frame,
                                        columns=("stat", "current", "new", "diff"),
                                        show="headings", height=22)
+        self.stats_tree.column("#0", width=0, stretch=False)
         self.stats_tree.heading("stat", text="Stat")
         self.stats_tree.heading("current", text="Current")
         self.stats_tree.heading("new", text="New")
         self.stats_tree.heading("diff", text="+/-")
         self.stats_tree.column("stat", width=90)
-        self.stats_tree.column("current", width=65, anchor=tk.E)
-        self.stats_tree.column("new", width=65, anchor=tk.E)
-        self.stats_tree.column("diff", width=55, anchor=tk.E)
+        self.stats_tree.column("current", width=60, anchor=tk.E)
+        self.stats_tree.column("new", width=60, anchor=tk.E)
+        self.stats_tree.column("diff", width=60, anchor=tk.E)
         self.stats_tree.pack(fill=tk.BOTH, expand=True)
 
         # Middle pane: Configuration (will be populated in next task)
@@ -212,8 +220,8 @@ class OptimizerTab(BaseTab):
             name = SETS[sid]["name"]
             var = tk.BooleanVar(value=False)
             self.four_piece_vars[name] = var
-            row = i // 2
-            col = i % 2
+            row = i // 4
+            col = i % 4
             ttk.Checkbutton(four_pc_inner, text=name, variable=var).grid(
                 row=row, column=col, sticky=tk.W, padx=5)
 
@@ -280,15 +288,15 @@ class OptimizerTab(BaseTab):
         self.result_tree.heading("extra", text="ExDMG",
                                  command=lambda: self.sort_results("extra"))
 
-        self.result_tree.column("rank", width=28, anchor=tk.CENTER)
-        self.result_tree.column("score", width=45, anchor=tk.CENTER)
-        self.result_tree.column("sets", width=160)
-        self.result_tree.column("atk", width=50, anchor=tk.CENTER)
-        self.result_tree.column("hp", width=50, anchor=tk.CENTER)
-        self.result_tree.column("def", width=50, anchor=tk.CENTER)
-        self.result_tree.column("crate", width=50, anchor=tk.CENTER)
-        self.result_tree.column("cdmg", width=55, anchor=tk.CENTER)
-        self.result_tree.column("extra", width=50, anchor=tk.CENTER)
+        self.result_tree.column("rank", width=28, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("score", width=45, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("sets", width=160, stretch=True)
+        self.result_tree.column("atk", width=50, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("hp", width=50, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("def", width=50, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("crate", width=50, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("cdmg", width=55, anchor=tk.CENTER, stretch=False)
+        self.result_tree.column("extra", width=50, anchor=tk.CENTER, stretch=False)
 
         result_scroll = ttk.Scrollbar(right_frame, orient=tk.VERTICAL,
                                       command=self.result_tree.yview)
@@ -298,8 +306,8 @@ class OptimizerTab(BaseTab):
         self.result_tree.bind("<<TreeviewSelect>>", self.on_result_select)
 
         # Selected build detail tree
-        detail_frame = ttk.LabelFrame(self.frame, text="Selected Build", padding=5)
-        detail_frame.pack(fill=tk.X, padx=5, pady=(0, 5))
+        detail_frame = ttk.LabelFrame(body, text="Selected Build", padding=5)
+        detail_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=(0, 5))
 
         detail_cols = ("slot", "set", "main", "sub1", "sub2", "sub3", "sub4",
                        "gs", "potential", "owner")

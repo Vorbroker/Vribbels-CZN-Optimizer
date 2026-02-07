@@ -184,12 +184,12 @@ class AboutTab(BaseTab):
 
             # Show message if update available
             if result.update_available and not result.error:
-                response = messagebox.showinfo(
+                response = messagebox.askyesno(
                     "Update Available",
                     f"A new version ({result.latest_version}) is available!\n\n"
                     f"Current version: {result.current_version}\n"
                     f"Latest version: {result.latest_version}\n\n"
-                    "Click OK to view releases."
+                    "Would you like to view the release page?"
                 )
                 if response:
                     self.update_checker.open_releases_page()

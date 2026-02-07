@@ -19,6 +19,8 @@ SETS = {
     20: {"name": "Line of Justice", "pieces": 4, "bonus": "+20% Crit Rate for 2+ cost", "type": "conditional"},
     22: {"name": "Orb of Inhibition", "pieces": 4, "bonus": "+10% Void DMG for 1 turn after hitting 2 times with Attack (2 max)", "type": "conditional"},
     23: {"name": "Judgment's Flames", "pieces": 4, "bonus": "+50% Instinct DMG to Ravaged targets", "type": "conditional"},
+    24: {"name": "Beast's Yearning", "pieces": 4, "bonus": "+30% Justice and Order Attack Cards (max 5 per turn)", "type": "conditional"},
+    25: {"name": "Glory's Reign", "pieces": 4, "bonus": "+5% ally DMG on Exhaust card create/use (max 15%)", "type": "conditional"},
 }
 
 TWO_PIECE_SETS = [sid for sid, s in SETS.items() if s["pieces"] == 2]
