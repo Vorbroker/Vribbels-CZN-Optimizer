@@ -95,7 +95,8 @@ class OptimizerGUI:
         self.capture_manager = CaptureManager(
             output_folder=OUTPUT_DIR,
             log_callback=lambda msg, tag=None: self.capture_tab_instance.capture_log_msg(msg, tag) if hasattr(self, 'capture_tab_instance') else None,
-            status_callback=lambda status: self.capture_tab_instance.capture_status_label.config(text=status) if hasattr(self, 'capture_tab_instance') else None
+            status_callback=lambda status: self.capture_tab_instance.capture_status_label.config(text=status) if hasattr(self, 'capture_tab_instance') else None,
+            live_update_callback=lambda: self.root.after(0, self._handle_live_update)
         )
 
         # Create AppContext for UI tabs
@@ -322,6 +323,18 @@ class OptimizerGUI:
             messagebox.showerror("Error", f"Failed to load: {e}")
             import traceback
             traceback.print_exc()
+
+    def _handle_live_update(self):
+        """Handle live update from capture — reload latest snapshot and refresh UI."""
+        latest = self.capture_manager.get_latest_capture()
+        if latest:
+            try:
+                self.optimizer.load_data(str(latest))
+                self.inventory_tab_instance.refresh_inventory()
+                self.heroes_tab_instance.refresh_heroes()
+                self.materials_tab_instance.refresh_materials()
+            except Exception:
+                pass  # Silently ignore reload errors during live monitoring
 
     def run(self):
         self.root.mainloop()

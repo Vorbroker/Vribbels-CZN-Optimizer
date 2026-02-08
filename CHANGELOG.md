@@ -5,6 +5,24 @@ All notable changes to Vribbels CZN Optimizer will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-02-07
+
+### Added
+- **Live Monitoring** — Keep capture running and see changes in real-time
+  - Equip, unequip, swap, and upgrade memory fragments without restarting capture
+  - Capture log shows human-readable [LIVE] messages for each change
+  - Inventory, Combatants, and Materials tabs auto-refresh on every change
+  - Data auto-loads on initial capture — no need to stop capture and manually load
+- **WebSocket Debug Logger** (hidden, developer tool) for inspecting raw game traffic
+
+### Changed
+- Capture tab instructions updated to reflect live monitoring workflow
+- Removed post-stop "Load data?" prompt — data is already loaded automatically
+- Filtered noisy mitmproxy WebSocket flow messages from capture log
+
+### Fixed
+- Handled JSON array WebSocket messages that caused `'list' object has no attribute 'get'` errors
+
 ## [1.6.0] - 2026-02-07
 
 ### Added
@@ -168,6 +186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.7.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.5.1...v1.6.0
 [1.5.1]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/Vorbroker/Vribbels-CZN-Optimizer/compare/v1.4.1...v1.5.0

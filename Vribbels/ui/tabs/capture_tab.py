@@ -102,7 +102,14 @@ class CaptureTab(BaseTab):
         ttk.Button(btn_frame, text="Open Snapshots",
                    command=self.open_snapshots_folder, width=15).pack(side=tk.LEFT, padx=(0, 10))
         ttk.Button(btn_frame, text="Load Latest",
-                   command=self.load_latest_capture, width=12).pack(side=tk.LEFT)
+                   command=self.load_latest_capture, width=12).pack(side=tk.LEFT, padx=(0, 10))
+
+        self.debug_var = tk.BooleanVar(value=False)
+        self.debug_checkbox = ttk.Checkbutton(
+            btn_frame, text="Debug WebSocket traffic", variable=self.debug_var
+        )
+        # Hidden for now — uncomment .pack() to re-enable debug logging UI
+        # self.debug_checkbox.pack(side=tk.LEFT, padx=(10, 0))
 
         # Requirements frame
         req_frame = ttk.LabelFrame(main_frame, text="Requirements", padding=10)
@@ -111,7 +118,9 @@ class CaptureTab(BaseTab):
         requirements_text = """- Run as Administrator (required for hosts file modification)
 - Certificate installed (see Setup tab)
 - Game must be closed before starting capture
-- After starting capture, launch game and load into the main menu, then stop the capture"""
+- After starting capture, launch the game and load into the main menu
+- Data loads automatically, keep capture running to see live updates as you make changes
+- If you stop the capture, close the game before starting a new capture"""
 
         ttk.Label(req_frame, text=requirements_text, justify=tk.LEFT).pack(anchor=tk.W)
 
@@ -178,14 +187,15 @@ class CaptureTab(BaseTab):
             selected_region = self.region_var.get()
             self.context.capture_manager.set_region(selected_region)
 
-            # Disable region dropdown during capture
+            # Disable region dropdown and debug checkbox during capture
             self.region_dropdown.config(state="disabled")
+            self.debug_checkbox.config(state=tk.DISABLED)
 
-            self.context.capture_manager.start_capture()
+            self.context.capture_manager.start_capture(debug_mode=self.debug_var.get())
             self.capture_start_btn.config(state=tk.DISABLED)
             self.capture_stop_btn.config(state=tk.NORMAL)
             self.capture_info_label.config(
-                text="Launch the game and load into the main menu, then stop the capture"
+                text="Launch the game and load into the main menu. Keep running for live updates."
             )
         except CaptureError as e:
             messagebox.showerror("Capture Error", str(e))
@@ -194,8 +204,9 @@ class CaptureTab(BaseTab):
         """Stop capture and handle auto-detection."""
         result = self.context.capture_manager.stop_capture()
 
-        # Re-enable region dropdown
+        # Re-enable region dropdown and debug checkbox
         self.region_dropdown.config(state="readonly")
+        self.debug_checkbox.config(state=tk.NORMAL)
 
         self.capture_start_btn.config(state=tk.NORMAL)
         self.capture_stop_btn.config(state=tk.DISABLED)
@@ -220,12 +231,7 @@ class CaptureTab(BaseTab):
                 self.context.config.server_region = detected_region
                 save_config(self.context.config)
 
-            # Load data prompt
-            if messagebox.askyesno("Load Data", "Capture complete! Load the captured data now?"):
-                self.context.load_data_callback(str(captured_file))
-                self.context.switch_tab_callback(self.context.notebook.nametowidget(
-                    self.context.notebook.tabs()[0]
-                ))
+            self.capture_log_msg(f"Capture file: {captured_file.name}", "success")
 
     def _on_region_changed(self, *args):
         """Called when user manually changes region dropdown."""

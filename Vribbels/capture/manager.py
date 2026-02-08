@@ -49,7 +49,8 @@ class Addon:
         self,
         output_dir: Path,
         dict_path: Optional[Path] = None,
-        log_callback: Optional[Callable[[str], None]] = None
+        log_callback: Optional[Callable[[str], None]] = None,
+        debug_mode: bool = False
     ):
         """
         Initialize the capture addon.
@@ -58,14 +59,23 @@ class Addon:
             output_dir: Directory to save captured JSON files
             dict_path: Optional path to zstd dictionary file
             log_callback: Optional callback for logging messages (defaults to print)
+            debug_mode: If True, log all WebSocket messages to a .jsonl file
         """
         self.output_dir = output_dir
-        self.log_callback = log_callback or print
+        self.log_callback = log_callback or (lambda msg: print(msg, flush=True))
         self.inventory_data = None
         self.character_data = None
         self.saved_path = None
         self.zstd_dict = None
         self.zstd_dctx = None
+
+        # Debug logging
+        self.debug_file = None
+        if debug_mode:
+            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+            debug_path = self.output_dir / f"websocket_debug_{ts}.jsonl"
+            self.debug_file = open(debug_path, "w", encoding="utf-8")
+            self.log_callback(f"Debug logging to: {debug_path.name}")
 
         # Load zstd dictionary if available
         if dict_path and dict_path.exists() and HAS_ZSTD:
@@ -188,8 +198,28 @@ class Addon:
                     return
 
             data = json.loads(content)
+
+            # Skip non-object messages (some responses are JSON arrays)
+            if not isinstance(data, dict):
+                return
+
+            # Debug: log every decoded message before filtering
+            if self.debug_file:
+                entry = {
+                    "ts": datetime.now().isoformat(),
+                    "keys": list(data.keys()),
+                    "size": len(content),
+                    "data": data
+                }
+                self.debug_file.write(json.dumps(entry, ensure_ascii=False) + "\\n")
+                self.debug_file.flush()
+
             if data.get("res") != "ok":
                 return
+
+            # Live monitoring: apply piece deltas
+            if "piece" in data and self.inventory_data and "piece_items" in self.inventory_data:
+                self._apply_piece_delta(data)
 
             # Check for 'info' structure (new API format)
             if "info" in data:
@@ -261,6 +291,69 @@ class Addon:
         self.log_callback(
             f"Saved: {count} Memory Fragments, {char_count} characters -> {self.saved_path.name}"
         )
+
+    def _describe_piece(self, piece_data):
+        """Build human-readable piece description like 'Line of Justice Denial (+3)'."""
+        res_id = piece_data.get("res_id", 0)
+        level = piece_data.get("level", 0)
+        res_str = str(res_id)
+        if len(res_str) >= 5:
+            slot_num = int(res_str[2])
+            set_id = int(res_str[4:])
+            set_name = SET_NAMES.get(set_id, f"Set{set_id}")
+            slot_name = SLOT_NAMES.get(slot_num, f"Slot{slot_num}")
+            return f"{set_name} {slot_name} (+{level})"
+        return f"Piece {piece_data.get('id', '?')} (+{level})"
+
+    def _apply_piece_delta(self, data):
+        """Apply a piece delta update to inventory and log the change."""
+        piece_items = self.inventory_data.get("piece_items", [])
+        new_piece = data["piece"]
+        new_id = new_piece["id"]
+        equipped_piece = data.get("equippedPiece")
+
+        # Find old piece for comparison
+        old_piece = None
+        for i, p in enumerate(piece_items):
+            if p["id"] == new_id:
+                old_piece = p
+                piece_items[i] = new_piece
+                break
+        else:
+            piece_items.append(new_piece)
+
+        # Apply equippedPiece (displaced piece in swap)
+        if equipped_piece:
+            eq_id = equipped_piece["id"]
+            for i, p in enumerate(piece_items):
+                if p["id"] == eq_id:
+                    piece_items[i] = equipped_piece
+                    break
+            else:
+                piece_items.append(equipped_piece)
+
+        self._save_data()
+
+        # Build log message
+        desc = self._describe_piece(new_piece)
+        char_id = new_piece.get("char_res_id", 0)
+        char_name = CHAR_NAMES.get(char_id, f"Character {char_id}")
+
+        if equipped_piece:
+            eq_desc = self._describe_piece(equipped_piece)
+            self.log_callback(f"[LIVE] Swapped gear on {char_name}: equipped {desc}, removed {eq_desc}")
+        elif old_piece and old_piece.get("level", 0) != new_piece.get("level", 0):
+            self.log_callback(f"[LIVE] Upgraded {desc}")
+        elif char_id != 0:
+            self.log_callback(f"[LIVE] Equipped {desc} to {char_name}")
+        else:
+            self.log_callback(f"[LIVE] Unequipped {desc}")
+
+    def done(self):
+        """Cleanup on shutdown."""
+        if self.debug_file:
+            self.debug_file.close()
+            self.debug_file = None
 '''
 
 
@@ -277,7 +370,8 @@ class CaptureManager:
         self,
         output_folder: Path,
         log_callback: Callable[[str, Optional[str]], None],
-        status_callback: Optional[Callable[[str], None]] = None
+        status_callback: Optional[Callable[[str], None]] = None,
+        live_update_callback: Optional[Callable[[], None]] = None
     ):
         """
         Initialize the capture manager.
@@ -286,12 +380,14 @@ class CaptureManager:
             output_folder: Directory to save captured JSON files
             log_callback: Function(message, tag) for logging (tag can be None, "success", "error", "warning", "info")
             status_callback: Optional function(status) for status updates
+            live_update_callback: Optional function() called when data changes (for auto-reload)
         """
         self.output_folder = Path(output_folder)
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         self.log_callback = log_callback
         self.status_callback = status_callback
+        self.live_update_callback = live_update_callback
 
         self.capturing = False
         self.proxy_process = None
@@ -453,9 +549,12 @@ class CaptureManager:
 
         return None
 
-    def _generate_addon_script(self) -> Path:
+    def _generate_addon_script(self, debug_mode: bool = False) -> Path:
         """
         Generate temporary addon script with configured output directory.
+
+        Args:
+            debug_mode: If True, enable WebSocket debug logging in addon
 
         Returns:
             Path to generated addon script
@@ -473,13 +572,24 @@ class CaptureManager:
             if not dict_path:
                 self.log_callback("Warning: zstd dictionary not found", "warning")
 
+            # Build lookup dicts for live monitoring log messages
+            from game_data import CHARACTERS, SETS
+            from game_data.constants import EQUIPMENT_SLOTS
+
+            char_names = {rid: c["name"] for rid, c in CHARACTERS.items() if c is not None}
+            set_names = {sid: s["name"] for sid, s in SETS.items()}
+            slot_names = {k: v.split(" ", 1)[1] if " " in v else v for k, v in EQUIPMENT_SLOTS.items()}
+
             # Generate standalone script using embedded template
             addon_code = f'''{ADDON_TEMPLATE}
 
 OUTPUT_DIR = Path(r"{self.output_folder.absolute()}")
 DICT_PATH = {dict_path_str}
+CHAR_NAMES = {char_names}
+SET_NAMES = {set_names}
+SLOT_NAMES = {slot_names}
 
-addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
+addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH, debug_mode={debug_mode})]
 '''
 
             with open(addon_script, "w") as f:
@@ -507,6 +617,8 @@ addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
             "server disconnect",
             "HTTP/2 connection",
             "CONNECT",
+            "WebSocket text message",
+            "WebSocket binary message",
             "<<",
             ">>",
         ]
@@ -521,12 +633,20 @@ addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
                 if any(pattern.lower() in line.lower() for pattern in skip_patterns):
                     continue
 
-                self.log_callback(f"[proxy] {line}", None)
+                # Route live updates with info tag, everything else with default tag
+                if "[LIVE]" in line:
+                    self.log_callback(f"[proxy] {line}", "info")
+                    if self.live_update_callback:
+                        self.live_update_callback()
+                else:
+                    self.log_callback(f"[proxy] {line}", None)
 
-                # Update status when data is saved
+                # Auto-reload on any save (initial capture + deltas)
                 if "Saved:" in line and "Memory Fragments" in line:
                     if self.status_callback:
                         self.status_callback("[OK] Data Captured!")
+                    if self.live_update_callback:
+                        self.live_update_callback()
 
             # Check exit code when process ends
             if self.proxy_process:
@@ -536,7 +656,7 @@ addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
         except Exception as e:
             self.log_callback(f"[proxy] Output reader error: {e}", "error")
 
-    def start_capture(self):
+    def start_capture(self, debug_mode: bool = False):
         """
         Start the capture process:
         1. Check admin privileges
@@ -545,6 +665,9 @@ addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
         4. Generate addon script
         5. Start mitmproxy
         6. Start background thread for output reading
+
+        Args:
+            debug_mode: If True, log all WebSocket messages to a debug file
 
         Raises:
             CaptureError: If capture cannot be started
@@ -583,7 +706,7 @@ addons = [Addon(OUTPUT_DIR, dict_path=DICT_PATH)]
 
         # Generate addon script
         try:
-            addon_script = self._generate_addon_script()
+            addon_script = self._generate_addon_script(debug_mode=debug_mode)
         except CaptureError as e:
             self.restore_hosts_file()
             raise
